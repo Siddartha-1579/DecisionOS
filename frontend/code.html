@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DecisionOS - Research Terminal</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+    </style>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#dde4e5",
+                      "on-secondary": "#381385",
+                      "inverse-primary": "#006877",
+                      "surface-container-lowest": "#090f11",
+                      "on-primary": "#00363e",
+                      "tertiary": "#ffd6a3",
+                      "on-secondary-container": "#bea8ff",
+                      "primary": "#8aebff",
+                      "on-surface": "#dde4e5",
+                      "on-secondary-fixed": "#21005e",
+                      "on-primary-fixed": "#001f25",
+                      "tertiary-fixed": "#ffddb5",
+                      "primary-fixed-dim": "#2fd9f4",
+                      "surface-container": "#1a2122",
+                      "surface-container-highest": "#2f3638",
+                      "surface-tint": "#2fd9f4",
+                      "surface-dim": "#0e1416",
+                      "surface-variant": "#2f3638",
+                      "secondary-fixed-dim": "#cebdff",
+                      "tertiary-fixed-dim": "#ffb957",
+                      "tertiary-container": "#ffb13b",
+                      "outline": "#859397",
+                      "on-tertiary": "#462b00",
+                      "inverse-on-surface": "#2b3233",
+                      "on-tertiary-container": "#6e4600",
+                      "on-tertiary-fixed-variant": "#643f00",
+                      "surface-container-low": "#161d1e",
+                      "background": "#0e1416",
+                      "on-background": "#dde4e5",
+                      "secondary": "#cebdff",
+                      "primary-container": "#22d3ee",
+                      "surface-container-high": "#242b2d",
+                      "on-tertiary-fixed": "#2a1800",
+                      "on-surface-variant": "#bbc9cd",
+                      "on-error": "#690005",
+                      "primary-fixed": "#a2eeff",
+                      "surface-bright": "#343a3c",
+                      "error-container": "#93000a",
+                      "secondary-fixed": "#e8ddff",
+                      "secondary-container": "#4f319c",
+                      "on-primary-fixed-variant": "#004e5a",
+                      "outline-variant": "#3c494c",
+                      "on-error-container": "#ffdad6",
+                      "surface": "#0e1416",
+                      "error": "#ffb4ab",
+                      "on-secondary-fixed-variant": "#4f319c",
+                      "on-primary-container": "#005763"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "container-max": "1440px",
+                      "xxl": "64px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "xs": "4px",
+                      "xl": "40px",
+                      "lg": "24px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "label-caps": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "h2": ["Space Grotesk"],
+                      "body-md": ["Inter"],
+                      "display-lg": ["Space Grotesk"],
+                      "body-lg": ["Inter"],
+                      "h1": ["Space Grotesk"],
+                      "h3": ["Space Grotesk"],
+                      "data-mono": ["Space Grotesk"]
+              },
+              "fontSize": {
+                      "label-caps": ["12px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                      "body-sm": ["14px", { "lineHeight": "1.5", "fontWeight": "400" }],
+                      "h2": ["24px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                      "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                      "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                      "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                      "h1": ["32px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                      "h3": ["20px", { "lineHeight": "1.4", "fontWeight": "500" }],
+                      "data-mono": ["16px", { "lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500" }]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary selection:text-on-primary">
+<!-- TopAppBar JSON Translation -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-slate-950/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.4)] border-b border-white/10 font-['Space_Grotesk'] antialiased">
+<div class="flex items-center gap-4">
+<span class="text-2xl font-bold tracking-tight text-cyan-400">DecisionOS</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="bg-primary/10 hover:bg-primary/20 text-cyan-400 px-4 py-2 rounded border border-cyan-400/30 transition-colors duration-200 active:scale-95 transition-transform flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+<span class="font-label-caps text-label-caps">Execute Simulation</span>
+</button>
+<div class="flex items-center gap-4 border-l border-white/10 pl-6">
+<button class="text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors duration-200 p-2 rounded-full active:scale-95 transition-transform">
+<span class="material-symbols-outlined">terminal</span>
+</button>
+<button class="text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors duration-200 p-2 rounded-full active:scale-95 transition-transform relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full"></span>
+</button>
+<button class="text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors duration-200 p-2 rounded-full active:scale-95 transition-transform">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- SideNavBar JSON Translation -->
+<nav class="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 w-64 bg-slate-950/90 backdrop-blur-xl border-r border-white/10 shadow-2xl shadow-cyan-900/10 font-['Space_Grotesk'] text-sm tracking-wide pt-20 pb-6 px-4">
+<div class="mb-8 px-4">
+<h2 class="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-1">Research Terminal</h2>
+<p class="text-slate-500 text-[10px] uppercase">Clinical Precision AI</p>
+</div>
+<button class="w-full bg-cyan-400 text-slate-950 hover:bg-cyan-300 font-bold py-3 px-4 rounded mb-8 flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+<span class="material-symbols-outlined text-sm">add</span>
+            New Research Node
+        </button>
+<div class="flex flex-col gap-1 flex-grow">
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-4 py-3 rounded bg-cyan-500/10 text-cyan-400 border-r-2 border-cyan-400 hover:translate-x-1 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Benchmark Dashboard</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 hover:translate-x-1 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+<span>Simulations</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 hover:translate-x-1 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span>Agent Leaderboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 hover:translate-x-1 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">reorder</span>
+<span>Task Queue</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 hover:translate-x-1 transition-all duration-300" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<span>Methodology</span>
+</a>
+</div>
+<div class="mt-auto pt-6 border-t border-white/10 flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-2 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">sensors</span>
+<span class="text-xs">System Status</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined text-[18px]">code</span>
+<span class="text-xs">API Docs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-16 min-h-screen flex flex-col relative z-10">
+<!-- Ambient Background Glow -->
+<div class="absolute top-0 left-1/4 w-[800px] h-[400px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="p-gutter max-w-container-max mx-auto w-full flex flex-col gap-xl relative z-10">
+<!-- Hero Section -->
+<section class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-lg border-b border-outline-variant/30 pb-xl pt-md">
+<div class="max-w-2xl">
+<h1 class="font-display-lg text-display-lg text-on-surface mb-xs tracking-tight">
+                        Decision<span class="text-primary">OS</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+                        Multi-Domain Benchmark for AI Decision-Making Under Real-World Constraints.
+                    </p>
+</div>
+<div class="flex items-center gap-md">
+<button class="bg-surface-container-highest border border-outline-variant hover:border-secondary hover:text-secondary text-on-surface font-label-caps text-label-caps px-6 py-3 rounded-DEFAULT transition-all shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">compare_arrows</span>
+                        COMPARE AGENTS
+                    </button>
+<button class="bg-primary hover:bg-primary-container text-on-primary font-label-caps text-label-caps px-6 py-3 rounded-DEFAULT transition-all shadow-[0_0_20px_rgba(138,235,255,0.3)] flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">science</span>
+                        RUN SIMULATION
+                    </button>
+</div>
+</section>
+<!-- KPI Strip -->
+<section class="grid grid-cols-2 md:grid-cols-5 gap-md">
+<!-- KPI Card 1 -->
+<div class="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+<div class="flex items-center justify-between mb-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Decision Intel</span>
+<span class="material-symbols-outlined text-primary text-[18px]">psychology</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h2 text-h2 text-on-surface">94.2</span>
+<span class="font-body-sm text-body-sm text-primary">+2.1%</span>
+</div>
+</div>
+<!-- KPI Card 2 -->
+<div class="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-secondary/50 to-transparent"></div>
+<div class="flex items-center justify-between mb-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Total Reward</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">workspace_premium</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h2 text-h2 text-on-surface">12,450</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">pts</span>
+</div>
+</div>
+<!-- KPI Card 3 -->
+<div class="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
+<div class="flex items-center justify-between mb-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Tasks Done</span>
+<span class="material-symbols-outlined text-outline text-[18px]">task_alt</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h2 text-h2 text-on-surface">843</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">/ 1000</span>
+</div>
+</div>
+<!-- KPI Card 4 -->
+<div class="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
+<div class="flex items-center justify-between mb-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Risk Accuracy</span>
+<span class="material-symbols-outlined text-tertiary-container text-[18px]">crisis_alert</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h2 text-h2 text-on-surface">98.1%</span>
+</div>
+</div>
+<!-- KPI Card 5 -->
+<div class="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
+<div class="flex items-center justify-between mb-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Resource Eff.</span>
+<span class="material-symbols-outlined text-primary-fixed-dim text-[18px]">energy_savings_leaf</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-h2 text-h2 text-on-surface">A+</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Optimal</span>
+</div>
+</div>
+</section>
+<!-- Main Grid Area -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
+<!-- Left Column (7 cols) -->
+<div class="lg:col-span-7 flex flex-col gap-lg">
+<!-- Current Environment Bento -->
+<div class="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
+<h3 class="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">public</span>
+                            Current Environment State
+                        </h3>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-sm">
+<div class="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Budget</span>
+<span class="font-data-mono text-data-mono text-primary">$4.2M</span>
+</div>
+<div class="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Time Elapsed</span>
+<span class="font-data-mono text-data-mono text-secondary">T+14:00</span>
+</div>
+<div class="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
+<span class="font-label-caps text-label-caps text-on-surface-variant block mb-1">Workforce</span>
+<span class="font-data-mono text-data-mono text-on-surface">1,240 Units</span>
+</div>
+<div class="bg-surface-container-highest/50 rounded-lg p-sm border border-error/20 bg-error/5">
+<span class="font-label-caps text-label-caps text-error block mb-1">Risk Level</span>
+<span class="font-data-mono text-data-mono text-error">Elevated</span>
+</div>
+</div>
+</div>
+<!-- Task Queue Cards -->
+<div class="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-h3 text-h3 text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">list_alt</span>
+                                Active Task Queue
+                            </h3>
+<button class="font-label-caps text-label-caps text-primary hover:text-primary-container transition-colors">View All</button>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- Task Card 1 -->
+<div class="bg-surface-container-highest/40 hover:bg-surface-container-highest/80 transition-colors border border-outline-variant/20 rounded-lg p-md flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-primary text-sm">local_hospital</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md text-on-surface font-medium">Optimize Supply Chain Route</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Domain: Logistics &amp; Healthcare</p>
+</div>
+</div>
+<div class="flex items-center gap-4 text-right">
+<div class="hidden sm:block">
+<span class="font-label-caps text-label-caps text-error block">Urgency</span>
+<span class="font-data-mono text-data-mono text-on-surface text-sm">Critical</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Task Card 2 -->
+<div class="bg-surface-container-highest/40 hover:bg-surface-container-highest/80 transition-colors border border-outline-variant/20 rounded-lg p-md flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center border border-secondary/20">
+<span class="material-symbols-outlined text-secondary text-sm">account_balance</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md text-on-surface font-medium">Allocate Q3 Operational Budget</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Domain: Finance</p>
+</div>
+</div>
+<div class="flex items-center gap-4 text-right">
+<div class="hidden sm:block">
+<span class="font-label-caps text-label-caps text-tertiary-container block">Urgency</span>
+<span class="font-data-mono text-data-mono text-on-surface text-sm">Medium</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column (5 cols) -->
+<div class="lg:col-span-5 flex flex-col gap-lg">
+<!-- Action Control Panel -->
+<div class="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
+<h3 class="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container">tune</span>
+                            Action Control Panel
+                        </h3>
+<div class="grid grid-cols-2 gap-sm">
+<button class="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-primary font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">priority_high</span>
+                                PRIORITIZE
+                            </button>
+<button class="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-secondary font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">call_split</span>
+                                ALLOCATE
+                            </button>
+<button class="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-on-surface font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">block</span>
+                                VETO
+                            </button>
+<button class="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-on-surface font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-lg">refresh</span>
+                                RE-EVALUATE
+                            </button>
+</div>
+</div>
+<!-- DIS Breakdown -->
+<div class="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg flex-grow">
+<h3 class="font-h3 text-h3 text-on-surface mb-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">donut_large</span>
+                            DIS Breakdown
+                        </h3>
+<div class="flex flex-col gap-6">
+<!-- Progress Bar 1 -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="font-body-sm text-body-sm text-on-surface">Decision Correctness</span>
+<span class="font-data-mono text-data-mono text-primary text-sm">96%</span>
+</div>
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary shadow-[0_0_10px_rgba(138,235,255,0.5)]" style="width: 96%"></div>
+</div>
+</div>
+<!-- Progress Bar 2 -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="font-body-sm text-body-sm text-on-surface">Resource Utilization</span>
+<span class="font-data-mono text-data-mono text-secondary text-sm">82%</span>
+</div>
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary shadow-[0_0_10px_rgba(206,189,255,0.5)]" style="width: 82%"></div>
+</div>
+</div>
+<!-- Progress Bar 3 -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="font-body-sm text-body-sm text-on-surface">Constraint Adherence</span>
+<span class="font-data-mono text-data-mono text-tertiary-container text-sm">88%</span>
+</div>
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-container shadow-[0_0_10px_rgba(255,177,59,0.5)]" style="width: 88%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Agent Leaderboard -->
+<section class="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg overflow-x-auto">
+<h3 class="font-h2 text-h2 text-on-surface mb-md">Agent Comparison Leaderboard</h3>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant/50">
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase">Agent Model</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right">DIS Score</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right">Tasks Solved</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right">Violations</th>
+<th class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase">Status</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono">
+<tr class="border-b border-outline-variant/20 hover:bg-surface-container-highest/30 transition-colors">
+<td class="py-4 px-4 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+                                Random Baseline
+                            </td>
+<td class="py-4 px-4 text-right text-on-surface-variant">12.4</td>
+<td class="py-4 px-4 text-right text-on-surface-variant">45</td>
+<td class="py-4 px-4 text-right text-error">156</td>
+<td class="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant">Terminated</td>
+</tr>
+<tr class="border-b border-outline-variant/20 hover:bg-surface-container-highest/30 transition-colors">
+<td class="py-4 px-4 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                                Rule-Based Heuristic
+                            </td>
+<td class="py-4 px-4 text-right text-on-surface">54.8</td>
+<td class="py-4 px-4 text-right text-on-surface">412</td>
+<td class="py-4 px-4 text-right text-on-surface-variant">23</td>
+<td class="py-4 px-4 font-label-caps text-label-caps text-on-surface">Completed</td>
+</tr>
+<!-- Highlighted Row -->
+<tr class="bg-primary/5 border-l-4 border-l-primary border-b border-outline-variant/20 hover:bg-primary/10 transition-colors">
+<td class="py-4 px-4 flex items-center gap-2 text-primary font-bold">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(138,235,255,0.8)]"></span>
+                                DecisionOS Mock LLM
+                            </td>
+<td class="py-4 px-4 text-right text-primary font-bold">94.2</td>
+<td class="py-4 px-4 text-right text-on-surface">843</td>
+<td class="py-4 px-4 text-right text-on-surface">2</td>
+<td class="py-4 px-4 font-label-caps text-label-caps text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">pulse_alert</span> Active
+                            </td>
+</tr>
+</tbody>
+</table>
+</section>
+<!-- Bottom Spacer before footer -->
+<div class="h-md"></div>
+</div>
+<!-- Footer JSON Translation -->
+<footer class="w-full flex flex-col items-center gap-4 px-8 py-8 mt-auto bg-slate-950 border-t border-white/5">
+<div class="text-cyan-400 font-black text-lg">DecisionOS</div>
+<div class="flex gap-6">
+<a class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-slate-600 hover:text-cyan-300 transition-colors opacity-80 hover:opacity-100" href="#">Security Architecture</a>
+<a class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-slate-600 hover:text-cyan-300 transition-colors opacity-80 hover:opacity-100" href="#">Methodology</a>
+<a class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-slate-600 hover:text-cyan-300 transition-colors opacity-80 hover:opacity-100" href="#">Support Terminal</a>
+<a class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-slate-600 hover:text-cyan-300 transition-colors opacity-80 hover:opacity-100" href="#">Documentation</a>
+</div>
+<div class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest text-slate-600 mt-4">
+                © 2024 DecisionOS. Authoritative AI Research Protocol.
+            </div>
+</footer>
+</main>
+</body></html>
