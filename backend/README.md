@@ -1,5 +1,12 @@
+---
+title: DecisionOS Backend
+emoji: 🧠
+colorFrom: indigo
+colorTo: cyan
+sdk: docker
+app_port: 7860
+---
 # DecisionOS
-
 **A Multi-Domain Benchmark for Evaluating AI Decision-Making Under Real-World Constraints**
 
 ---
@@ -46,12 +53,12 @@ pip install -r requirements.txt
 ## Running the Server
 
 ```bash
-python run.py
+python -m uvicorn server.app:app --reload --host 127.0.0.1 --port 7860
 ```
 
-Server starts at: `http://localhost:8000`  
-Interactive docs: `http://localhost:8000/docs`  
-ReDoc: `http://localhost:8000/redoc`
+Server starts at: `http://localhost:7860`  
+Interactive docs: `http://localhost:7860/docs`  
+ReDoc: `http://localhost:7860/redoc`
 
 ---
 
@@ -136,29 +143,29 @@ DIS is a weighted composite of five grader components, each scored 0.0–1.0:
 
 ### Reset environment
 ```bash
-curl -X POST http://localhost:8000/reset
+curl -X POST http://localhost:7860/reset
 ```
 
 ### Submit an action
 ```bash
-curl -X POST http://localhost:8000/step \
+curl -X POST http://localhost:7860/step \
   -H "Content-Type: application/json" \
   -d '{"action_type": "prioritize_task", "task_id": "T1B", "reason": "Critical DB outage"}'
 ```
 
 ### Run MockLLM agent
 ```bash
-curl -X POST http://localhost:8000/simulate/mock_llm
+curl -X POST http://localhost:7860/simulate/mock_llm
 ```
 
 ### Compare all agents
 ```bash
-curl http://localhost:8000/compare-agents
+curl http://localhost:7860/compare-agents
 ```
 
 ### List tasks
 ```bash
-curl http://localhost:8000/tasks
+curl http://localhost:7860/tasks
 ```
 
 ---
