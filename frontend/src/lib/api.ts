@@ -1,4 +1,12 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7860';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.PROD ? 'https://jaideep-1579-decisionos-backend.hf.space' : 'http://localhost:7860');
+
+console.log("=========================================");
+console.log("DecisionOS API Client Initialized");
+console.log("Active API Base URL:", API_BASE_URL);
+console.log("Environment Mode:", import.meta.env.MODE);
+console.log("Vercel Provided URL:", import.meta.env.VITE_API_BASE_URL || 'Not Set');
+console.log("=========================================");
 
 export interface ActionPayload {
   action_type: string;
