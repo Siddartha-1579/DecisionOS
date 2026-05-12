@@ -143,6 +143,10 @@ export default function App() {
   const [fallbackMode, setFallbackMode] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
+  const [appMode, setAppMode] = useState<'human' | 'ai'>('human');
+  const [simulationStatus, setSimulationStatus] = useState<'idle' | 'in-progress' | 'completed'>('idle');
+  const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
+
   const fetchState = async () => {
     try {
       setLoading(true);
@@ -173,6 +177,8 @@ export default function App() {
       setError(null);
       setLeaderboard([]);
       setHistory([]);
+      setSimulationStatus('idle');
+      setHumanFinalMetrics(null);
     } catch (err) {
       console.error(err);
       setError('Failed to reset environment.');
@@ -211,6 +217,18 @@ export default function App() {
       };
       setHistory(prev => [newHistoryItem, ...prev]);
       setError(null);
+      
+      if (result.done || result.observation?.active_tasks?.length === 0) {
+        setSimulationStatus('completed');
+        setHumanFinalMetrics({
+           agent_name: 'human',
+           final_dis: result.dis?.total_score || 0,
+           completed_tasks: result.metrics?.completed_tasks || 0,
+           risk_failures: result.metrics?.risk_failures || 0,
+           total_reward: result.metrics?.total_reward || 0
+        });
+        await handleCompareAgents();
+      }
     } catch (err) {
       console.error(err);
       setError(`Failed to perform action: ${actionType}`);
@@ -310,12 +328,31 @@ export default function App() {
   };
 
   const renderLeaderboardTowers = () => {
-    const list = leaderboard.length > 0 ? leaderboard : getMockLeaderboard();
+    let list = leaderboard.length > 0 ? [...leaderboard] : getMockLeaderboard();
+    if (appMode === 'human' && humanFinalMetrics) {
+      list = [...list.filter(l => l.agent_name !== 'human'), humanFinalMetrics];
+    }
+    
+    // Sort by final_dis descending
+    list.sort((a, b) => b.final_dis - a.final_dis);
+
+    const winner = list[0]?.agent_name;
+
     return (
       <div className="flex flex-col sm:flex-row items-end justify-center gap-8 sm:gap-16 mt-12 h-64 border-b border-outline-variant/30 pb-4">
         {list.map((item, index) => {
-          const isWinner = item.agent_name === 'mock_llm';
+          const isWinner = item.agent_name === winner;
+          const isHuman = item.agent_name === 'human';
           const heightPercent = Math.max(item.final_dis * 100, 10);
+          
+          let pillarBg = 'bg-surface-container border border-outline-variant/50 shadow-glass';
+          if (isWinner) pillarBg = 'bg-primary/20 border border-primary/50 shadow-glow-cyan-lg';
+          if (isHuman) pillarBg = 'bg-secondary/20 border border-secondary/50 shadow-glow-violet-lg';
+
+          let textColor = 'text-on-surface';
+          if (isWinner) textColor = 'text-primary';
+          if (isHuman) textColor = 'text-secondary';
+
           return (
             <motion.div 
               key={index} 
@@ -326,7 +363,7 @@ export default function App() {
             >
               {/* Floating Meta Data */}
               <motion.div 
-                className={`absolute -top-16 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity ${isWinner ? 'text-primary' : 'text-on-surface'}`}
+                className={`absolute -top-16 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity ${textColor}`}
                 initial={{ y: 10 }}
                 whileHover={{ y: 0 }}
               >
@@ -336,13 +373,13 @@ export default function App() {
 
               {/* Energy Pillar */}
               <motion.div 
-                className={`w-16 rounded-t-lg relative overflow-hidden ${isWinner ? 'bg-primary/20 border border-primary/50 shadow-glow-cyan-lg' : 'bg-surface-container border border-outline-variant/50 shadow-glass'}`}
+                className={`w-16 rounded-t-lg relative overflow-hidden ${pillarBg}`}
                 style={{ height: `${heightPercent}%` }}
                 whileHover={{ scale: 1.05 }}
               >
-                {isWinner && (
+                {(isWinner || isHuman) && (
                   <motion.div 
-                    className="absolute inset-0 bg-gradient-to-t from-transparent to-primary/40"
+                    className={`absolute inset-0 bg-gradient-to-t from-transparent ${isHuman ? 'to-secondary/40' : 'to-primary/40'}`}
                     animate={{ y: ['100%', '-100%'] }}
                     transition={{ repeat: Infinity, duration: 2, ease: "linear" as const }}
                   />
@@ -350,7 +387,7 @@ export default function App() {
               </motion.div>
 
               {/* Base Label */}
-              <div className="mt-4 font-label-caps text-xs text-center uppercase tracking-widest text-on-surface-variant">
+              <div className={`mt-4 font-label-caps text-xs text-center uppercase tracking-widest ${isHuman ? 'text-secondary font-bold' : 'text-on-surface-variant'}`}>
                 {item.agent_name.replace('_', ' ')}
               </div>
             </motion.div>
@@ -417,12 +454,29 @@ export default function App() {
             DecisionOS
           </motion.span>
         </div>
+
+        {/* Mode Selector */}
+        <div className="hidden md:flex items-center bg-surface-container rounded-full p-1 border border-outline-variant/30">
+          <button 
+            onClick={() => setAppMode('human')}
+            className={`px-4 py-1 rounded-full font-label-caps text-xs transition-colors ${appMode === 'human' ? 'bg-primary/20 text-primary border border-primary/50 shadow-glow-cyan' : 'text-on-surface-variant hover:text-on-surface'}`}
+          >
+            Human Mode
+          </button>
+          <button 
+            onClick={() => setAppMode('ai')}
+            className={`px-4 py-1 rounded-full font-label-caps text-xs transition-colors ${appMode === 'ai' ? 'bg-secondary/20 text-secondary border border-secondary/50 shadow-glow-violet' : 'text-on-surface-variant hover:text-on-surface'}`}
+          >
+            AI Agent Mode
+          </button>
+        </div>
+
         <div className="flex items-center gap-6">
           <motion.button 
-            whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(56,245,255,0.4)" }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSimulate} disabled={loading} 
-            className="bg-primary/10 text-primary px-4 py-2 rounded-full border border-primary/30 transition-colors duration-200 flex items-center gap-2"
+            whileHover={appMode === 'ai' ? { scale: 1.05, boxShadow: "0 0 15px rgba(56,245,255,0.4)" } : {}}
+            whileTap={appMode === 'ai' ? { scale: 0.95 } : {}}
+            onClick={handleSimulate} disabled={loading || appMode === 'human'} 
+            className={`px-4 py-2 rounded-full border transition-colors duration-200 flex items-center gap-2 ${appMode === 'human' ? 'bg-surface-container/50 text-on-surface-variant border-outline-variant/30 opacity-50 cursor-not-allowed' : 'bg-primary/10 text-primary border-primary/30'}`}
           >
             <span className="material-symbols-outlined text-sm">play_arrow</span>
             <span className="font-label-caps text-label-caps">Execute Simulation</span>
@@ -486,6 +540,12 @@ export default function App() {
               <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
                 Multi-Domain Benchmark for AI Decision-Making Under Real-World Constraints.
               </p>
+              {appMode === 'human' && (
+                <div className="mt-4 inline-flex items-center gap-2 bg-secondary/10 border border-secondary/30 text-secondary px-3 py-1 rounded-full shadow-glow-violet animate-pulse">
+                  <span className="material-symbols-outlined text-sm">sports_esports</span>
+                  <span className="font-label-caps text-xs">Challenge: Can you outperform the AI?</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-md">
               <motion.button 
@@ -625,11 +685,11 @@ export default function App() {
                   ].map((btn, i) => (
                     <motion.button 
                       key={i}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={appMode === 'human' && simulationStatus !== 'completed' ? { scale: 1.05, y: -2 } : {}}
+                      whileTap={appMode === 'human' && simulationStatus !== 'completed' ? { scale: 0.95 } : {}}
                       onClick={() => handleAction(btn.action)} 
-                      disabled={loading} 
-                      className={`bg-space-900/60 hover:bg-space-800 border border-${btn.color}/30 text-${btn.color} font-label-caps text-xs py-4 px-4 rounded-xl flex flex-col items-center gap-2 transition-colors shadow-[inset_0_0_15px_rgba(255,255,255,0.02)]`}
+                      disabled={loading || appMode !== 'human' || simulationStatus === 'completed'} 
+                      className={`bg-space-900/60 hover:bg-space-800 border border-${btn.color}/30 text-${btn.color} font-label-caps text-xs py-4 px-4 rounded-xl flex flex-col items-center gap-2 transition-colors shadow-[inset_0_0_15px_rgba(255,255,255,0.02)] ${appMode !== 'human' || simulationStatus === 'completed' ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
                     >
                       <span className="material-symbols-outlined text-xl">{btn.icon}</span>
                       {btn.label}
