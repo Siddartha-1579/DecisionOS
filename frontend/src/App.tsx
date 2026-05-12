@@ -58,6 +58,225 @@ const generateExplainabilityFactors = (action: string, activeTask: any, prevStat
   return { explanation, urgencyImpact, riskImpact, resourceImpact, indicator };
 };
 
+const generateFutureProjections = (state: any) => {
+  if (!state || !state.observation) return { severity: 'Stable', projections: [] };
+  
+  const obs = state.observation;
+  const tasks = obs?.active_tasks || [];
+  const nextTask = tasks[0];
+  
+  const projections = [];
+  let severityScore = 0;
+
+  // 1. Risk Projection
+  if (obs.risk_level === 'High' || obs.risk_level === 'Elevated') {
+    severityScore += 2;
+    if (nextTask?.urgency === 'Critical') {
+      projections.push({
+        id: 'risk',
+        title: 'Risk Escalation Imminent',
+        impact: 'negative',
+        reasons: [
+          `Current operational risk is ${obs.risk_level}`,
+          `Critical task pending: "${nextTask.title}"`,
+          `Combined risk of failure exceeds safe thresholds`
+        ]
+      });
+      severityScore += 1;
+    } else {
+      projections.push({
+        id: 'risk',
+        title: 'Risk Profile Unstable',
+        impact: 'negative',
+        reasons: [
+          `Current operational risk remains ${obs.risk_level}`,
+          `Routine actions may trigger cascading failures`
+        ]
+      });
+    }
+  } else {
+    projections.push({
+      id: 'risk',
+      title: 'Risk Profile Stable',
+      impact: 'positive',
+      reasons: [
+        `Current risk is Normal`,
+        `Recent decisions have mitigated operational threats`
+      ]
+    });
+  }
+
+  // 2. Task Delay / Backlog Impact
+  if (tasks.length > 2) {
+    if (obs.workforce < 1000) {
+      projections.push({
+        id: 'delay',
+        title: 'Deadline Risk HIGH',
+        impact: 'negative',
+        reasons: [
+          `${tasks.length} tasks bottlenecked in queue`,
+          `Workforce capacity (${obs.workforce} U) is insufficient for parallel execution`,
+          `Delay penalties likely on next cycle`
+        ]
+      });
+      severityScore += 2;
+    } else {
+      projections.push({
+        id: 'delay',
+        title: 'Moderate Task Backlog',
+        impact: 'neutral',
+        reasons: [
+          `${tasks.length} active tasks queued`,
+          `Workforce is adequate, but prioritization is required`
+        ]
+      });
+      severityScore += 1;
+    }
+  } else if (tasks.length > 0) {
+    projections.push({
+      id: 'delay',
+      title: 'Optimal Task Throughput',
+      impact: 'positive',
+      reasons: [
+        `Queue size is manageable (${tasks.length})`,
+        `Sufficient capacity to process active tasks`
+      ]
+    });
+  } else {
+    projections.push({
+      id: 'delay',
+      title: 'Queue Cleared',
+      impact: 'positive',
+      reasons: [`No active tasks pending`]
+    });
+  }
+
+  // 3. Resource / Budget Impact
+  if (obs.budget < 2000000) {
+    projections.push({
+      id: 'budget',
+      title: 'Budget Deficit Expected',
+      impact: 'negative',
+      reasons: [
+        `Capital reserves dropping below optimal runway`,
+        `Resource allocation efficiency at -10%`,
+        `Future high-cost tasks may be vetoed automatically`
+      ]
+    });
+    severityScore += 2;
+  } else {
+    projections.push({
+      id: 'budget',
+      title: 'Nominal Resource Burn Rate',
+      impact: 'positive',
+      reasons: [
+        `Budget reserves healthy`,
+        `Resource allocation efficiency maintained`
+      ]
+    });
+  }
+
+  let severity = 'Stable';
+  if (severityScore >= 5) severity = 'Critical Escalation';
+  else if (severityScore >= 3) severity = 'High Risk';
+  else if (severityScore >= 1) severity = 'Moderate Concern';
+
+  return { severity, projections };
+};
+
+const ProjectedConsequences = ({ state }: { state: any }) => {
+  const { severity, projections } = generateFutureProjections(state);
+  
+  const getSeverityColor = (sev: string) => {
+    if (sev === 'Critical Escalation') return 'text-error shadow-glow-red border-error';
+    if (sev === 'High Risk') return 'text-alert-red border-alert-red';
+    if (sev === 'Moderate Concern') return 'text-tertiary-container border-tertiary-container';
+    return 'text-signal-green shadow-glow-cyan border-signal-green';
+  };
+
+  const getImpactColor = (impact: string) => {
+    if (impact === 'positive') return 'text-signal-green border-signal-green/30';
+    if (impact === 'negative') return 'text-error border-error/30';
+    return 'text-tertiary-container border-tertiary-container/30';
+  };
+
+  const getImpactIcon = (impact: string) => {
+    if (impact === 'positive') return 'trending_up';
+    if (impact === 'negative') return 'trending_down';
+    return 'trending_flat';
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass relative overflow-hidden"
+    >
+      <div className="flex justify-between items-center mb-md border-b border-outline-variant/20 pb-4">
+        <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-secondary">online_prediction</span>
+          Projected Consequences
+        </h3>
+        <div className={`px-3 py-1 rounded-full border text-xs font-label-caps uppercase tracking-widest ${getSeverityColor(severity)} animate-pulse`}>
+          {severity}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <AnimatePresence mode="wait">
+          {projections.map((proj) => (
+            <ProjectionItem key={proj.id} proj={proj} getImpactColor={getImpactColor} getImpactIcon={getImpactIcon} />
+          ))}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+};
+
+const ProjectionItem = ({ proj, getImpactColor, getImpactIcon }: any) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className={`bg-space-900/40 border rounded-xl p-4 transition-colors cursor-pointer hover:bg-space-900/60 ${getImpactColor(proj.impact)}`}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined">{getImpactIcon(proj.impact)}</span>
+          <span className="font-body-md text-sm font-medium text-on-surface">{proj.title}</span>
+        </div>
+        <span className="material-symbols-outlined text-sm opacity-50">
+          {expanded ? 'expand_less' : 'expand_more'}
+        </span>
+      </div>
+      
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden mt-3"
+          >
+            <div className="pt-3 border-t border-inherit">
+              <span className="text-[10px] uppercase tracking-widest opacity-70 mb-2 block">Why this prediction?</span>
+              <ul className="list-disc pl-4 space-y-1">
+                {proj.reasons.map((reason: string, idx: number) => (
+                  <li key={idx} className="text-xs text-on-surface-variant">{reason}</li>
+                ))}
+              </ul>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 const TimelineItem = ({ item }: { item: any }) => {
   const [expanded, setExpanded] = useState(false);
   
@@ -131,6 +350,19 @@ const TimelineItem = ({ item }: { item: any }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {item.projections && (
+        <div className="mt-3 pl-2 border-l-2 border-outline-variant/50 text-xs flex items-center gap-2">
+          <span className="font-label-caps opacity-60">Projection:</span>
+          <span className={`font-medium ${
+            item.projections.severity === 'Critical Escalation' ? 'text-error' :
+            item.projections.severity === 'High Risk' ? 'text-alert-red' :
+            item.projections.severity === 'Moderate Concern' ? 'text-tertiary-container' : 'text-signal-green'
+          }`}>
+            {item.projections.severity}
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -206,6 +438,7 @@ export default function App() {
       setState({ observation: result.observation, metrics: result.metrics, dis: result.dis });
       
       const factors = generateExplainabilityFactors(actionType, activeTask, prevState, result);
+      const futureProjections = generateFutureProjections({ observation: result.observation, metrics: result.metrics, dis: result.dis });
       
       const newHistoryItem = {
         id: Date.now(),
@@ -213,7 +446,8 @@ export default function App() {
         reward: result.reward || 0,
         explanation: factors.explanation,
         outcome: result.info?.outcome || 'Action executed successfully.',
-        factors
+        factors,
+        projections: futureProjections
       };
       setHistory(prev => [newHistoryItem, ...prev]);
       setError(null);
@@ -668,6 +902,8 @@ export default function App() {
                   <div className="h-48"></div> 
                 </div>
               </motion.div>
+
+              {state && <ProjectedConsequences state={state} />}
             </div>
 
             <div className="lg:col-span-5 flex flex-col gap-lg">
