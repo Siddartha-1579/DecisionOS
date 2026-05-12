@@ -467,6 +467,79 @@ const FailureAnalysisPanel = ({ metrics, dis, history, agentType }: { metrics: a
   );
 };
 
+const LiveRiskMonitor = ({ risk, momentum, history }: { risk: number, momentum: number, history: any[] }) => {
+  let stateLabel = 'Stable Operations';
+  let color = 'signal-green';
+  let bgGlow = 'shadow-glow-cyan';
+  let pulse = false;
+
+  if (risk > 85) { stateLabel = 'System Failure Imminent'; color = 'error'; bgGlow = 'shadow-[0_0_20px_rgba(248,113,113,0.4)]'; pulse = true; }
+  else if (risk > 60) { stateLabel = 'Critical Escalation'; color = 'alert-red'; bgGlow = 'shadow-[0_0_15px_rgba(248,113,113,0.2)]'; }
+  else if (risk > 30) { stateLabel = 'Operational Instability'; color = 'tertiary-container'; bgGlow = 'shadow-[0_0_15px_rgba(251,191,36,0.2)]'; }
+  else if (risk > 15) { stateLabel = 'Elevated Concern'; color = 'secondary'; bgGlow = 'shadow-[0_0_15px_rgba(139,92,246,0.2)]'; }
+
+  return (
+    <motion.div 
+      animate={{ boxShadow: pulse ? '0 0 30px rgba(248,113,113,0.3)' : '' }}
+      transition={{ repeat: pulse ? Infinity : 0, duration: 1, repeatType: "reverse" }}
+      className={`bg-surface-container/30 backdrop-blur-2xl border border-${color}/40 rounded-2xl p-lg ${bgGlow} relative overflow-hidden`}
+    >
+      <div className={`absolute top-0 left-0 w-1 h-full bg-${color}`}></div>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
+          <span className={`material-symbols-outlined text-${color} ${pulse ? 'animate-pulse' : ''}`}>warning</span>
+          Live Risk Monitor
+        </h3>
+        <div className={`px-3 py-1 rounded-full border border-${color}/40 text-xs font-label-caps uppercase tracking-widest text-${color}`}>
+          {stateLabel}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <div className="flex justify-between text-xs font-label-caps tracking-widest mb-2 text-on-surface-variant">
+            <span>Dynamic Risk Score</span>
+            <span className={`text-${color} font-bold font-data-mono text-sm`}>{Math.round(risk)}%</span>
+          </div>
+          <div className="w-full h-4 bg-space-900 rounded-full overflow-hidden border border-outline-variant/30 relative">
+            <motion.div 
+              className={`h-full bg-${color}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${risk}%` }}
+              transition={{ type: "spring", stiffness: 100 }}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center pt-2 border-t border-outline-variant/20">
+          <div className="text-xs text-on-surface-variant font-label-caps">Risk Momentum</div>
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-alert-red text-sm">speed</span>
+            <span className="font-data-mono text-alert-red">{momentum.toFixed(1)}x</span>
+          </div>
+        </div>
+
+        {history.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-outline-variant/20">
+            <h4 className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[14px]">history</span>
+              Crisis History
+            </h4>
+            <ul className="space-y-2 relative before:absolute before:inset-y-0 before:left-[5px] before:w-[2px] before:bg-outline-variant/20">
+              {history.slice(-3).map((event: string, i: number) => (
+                <li key={i} className="text-[11px] text-on-surface-variant pl-4 relative">
+                  <div className={`absolute left-0 top-1.5 w-[12px] h-[12px] rounded-full border-2 border-space-900 ${event.includes('Stabilization') ? 'bg-signal-green' : 'bg-error shadow-glow-red'}`}></div>
+                  {event}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
+
 const ProjectedConsequences = ({ state }: { state: any }) => {
   const { severity, projections } = generateFutureProjections(state);
   
@@ -759,6 +832,11 @@ export default function App() {
   const [benchmarkProgress, setBenchmarkProgress] = useState(0);
   const [benchmarkTime, setBenchmarkTime] = useState(0);
 
+  const [dynamicRisk, setDynamicRisk] = useState(0);
+  const [riskMomentum, setRiskMomentum] = useState(1.0);
+  const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0);
+  const [crisisHistory, setCrisisHistory] = useState<any[]>([]);
+
   const fetchState = async () => {
     try {
       setLoading(true);
@@ -791,6 +869,10 @@ export default function App() {
       setHistory([]);
       setSimulationStatus('idle');
       setHumanFinalMetrics(null);
+      setDynamicRisk(0);
+      setRiskMomentum(1.0);
+      setConsecutiveSuccesses(0);
+      setCrisisHistory([]);
     } catch (err) {
       console.error(err);
       setError('Failed to reset environment.');
@@ -815,10 +897,76 @@ export default function App() {
         reason: 'Selected based on urgency, importance, and risk.'
       };
       const result = await api.step(payload);
-      setState({ observation: result.observation, metrics: result.metrics, dis: result.dis });
+      
+      const currentTasks = state?.observation?.active_tasks || [];
+      let riskDelta = 0;
+      let actionReason = '';
+
+      if (actionType === 'step' && activeTask?.urgency === 'Critical') {
+        riskDelta = 15;
+        actionReason = 'Ignored critical task';
+      } else if (actionType === 'step' && currentTasks.length > 5) {
+        riskDelta = 10;
+        actionReason = 'Prolonged queue congestion';
+      } else if (result.reward < 0) {
+        riskDelta = 5;
+        actionReason = 'Action yielded negative reward';
+      } else if (actionType === 'allocate_resources' && prevState?.budget < 1000000) {
+        riskDelta = 8;
+        actionReason = 'Resource starvation risk';
+      } else if (actionType === 'veto_task' && prevState?.risk_level === 'Normal') {
+        riskDelta = 10;
+        actionReason = 'Escalation misuse';
+      } else if (result.reward > 10) {
+        riskDelta = -15;
+        actionReason = 'Successful mitigation';
+      } else {
+        riskDelta = -2;
+        actionReason = 'Nominal operational step';
+      }
+
+      let newMomentum = riskMomentum;
+      let newConsecutiveSuccesses = consecutiveSuccesses;
+
+      if (riskDelta > 0) {
+        newConsecutiveSuccesses = 0;
+        newMomentum = Math.min(newMomentum + 0.3, 3.0);
+      } else {
+        newConsecutiveSuccesses += 1;
+        if (newConsecutiveSuccesses >= 2) {
+          newMomentum = Math.max(newMomentum - 0.5, 1.0);
+          riskDelta *= 1.5;
+        }
+      }
+
+      const appliedRiskDelta = riskDelta > 0 ? riskDelta * newMomentum : riskDelta;
+      const newDynamicRisk = Math.min(Math.max(dynamicRisk + appliedRiskDelta, 0), 100);
+      
+      if (newDynamicRisk > dynamicRisk + 10) {
+        setCrisisHistory(prev => [...prev, `Escalation (+${Math.round(appliedRiskDelta)} risk): ${actionReason}`]);
+      } else if (newDynamicRisk < dynamicRisk - 10 && newDynamicRisk < 50) {
+        setCrisisHistory(prev => [...prev, `Stabilization phase: Risk decaying rapidly.`]);
+      }
+
+      setDynamicRisk(newDynamicRisk);
+      setRiskMomentum(newMomentum);
+      setConsecutiveSuccesses(newConsecutiveSuccesses);
+
+      const baseDis = result.dis?.total_score || 0;
+      const riskPenalty = (newDynamicRisk / 100) * 0.20; // Up to 20% penalty
+      const adjustedDis = Math.max(0, baseDis - riskPenalty);
+
+      const enhancedDis = { 
+        ...result.dis, 
+        base_score: baseDis, 
+        risk_penalty: riskPenalty, 
+        total_score: adjustedDis 
+      };
+
+      setState({ observation: result.observation, metrics: result.metrics, dis: enhancedDis });
       
       const factors = generateExplainabilityFactors(actionType, activeTask, prevState, result);
-      const futureProjections = generateFutureProjections({ observation: result.observation, metrics: result.metrics, dis: result.dis });
+      const futureProjections = generateFutureProjections({ observation: result.observation, metrics: result.metrics, dis: enhancedDis });
       
       const newHistoryItem = {
         id: Date.now(),
@@ -836,10 +984,14 @@ export default function App() {
         setSimulationStatus('completed');
         setHumanFinalMetrics({
            agent_name: 'human',
-           final_dis: result.dis?.total_score || 0,
+           final_dis: state?.dis?.total_score || 0, // Gets the Adjusted DIS from the last step
+           base_dis: state?.dis?.base_score || 0,
+           risk_penalty: state?.dis?.risk_penalty || 0,
            completed_tasks: result.metrics?.completed_tasks || 0,
            risk_failures: result.metrics?.risk_failures || 0,
-           total_reward: result.metrics?.total_reward || 0
+           total_reward: result.metrics?.total_reward || 0,
+           accuracy: 0.9,
+           efficiency: 0.8
         });
         await handleCompareAgents();
       }
@@ -871,9 +1023,23 @@ export default function App() {
         await api.resetEnvironment();
         const result = await api.simulate(agent);
         
+        const baseDis = result.final_dis || Math.random();
+        
+        // Derive dynamic risk for AI based on final metrics
+        const riskFails = result.risk_failures || 0;
+        const incorrectness = 1 - (result.component_scores?.correctness || 1);
+        const inefficiency = 1 - (result.component_scores?.utilization || 1);
+        let aiRisk = (riskFails * 15) + (incorrectness * 50) + (inefficiency * 30);
+        aiRisk = Math.min(Math.max(aiRisk, 0), 100);
+        
+        const penalty = (aiRisk / 100) * 0.20;
+        const finalDis = Math.max(0, baseDis - penalty);
+
         results.push({
           agent_name: agent,
-          final_dis: result.final_dis || Math.random(),
+          final_dis: finalDis,
+          base_dis: baseDis,
+          risk_penalty: penalty,
           completed_tasks: result.completed_tasks || 0,
           risk_failures: result.risk_failures || 0,
           total_reward: result.total_reward || 0,
@@ -1035,6 +1201,19 @@ export default function App() {
               >
                 <div className={`text-xl font-bold mb-1 ${textColor}`}>{formatDIS(item.final_dis)} DIS</div>
                 <div className="w-full space-y-1">
+                  {item.base_dis !== undefined && (
+                    <>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-on-surface-variant">Base DIS</span>
+                        <span className="text-on-surface">{formatDIS(item.base_dis)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-on-surface-variant">Risk Penalty</span>
+                        <span className="text-error">-{(item.risk_penalty * 100).toFixed(1)}</span>
+                      </div>
+                      <div className="w-full h-[1px] bg-outline-variant/30 my-1"></div>
+                    </>
+                  )}
                   <div className="flex justify-between text-xs">
                     <span className="text-on-surface-variant">Accuracy</span>
                     <span className="text-on-surface">{(item.accuracy * 100).toFixed(0)}%</span>
@@ -1298,11 +1477,10 @@ export default function App() {
 
           <motion.section variants={containerVariants} className="grid grid-cols-2 md:grid-cols-5 gap-md perspective-1000">
             {[
-              { label: 'Decision Intel', value: formatDIS(state?.dis?.total_score || 0), sub: '+2.1%', icon: 'psychology', color: 'primary', shadow: 'shadow-glow-cyan' },
-              { label: 'Total Reward', value: formatNumber(state?.metrics?.total_reward || 0), sub: 'pts', icon: 'workspace_premium', color: 'secondary', shadow: 'shadow-glow-violet' },
-              { label: 'Tasks Done', value: formatNumber(state?.metrics?.completed_tasks || 0), sub: '/ 1000', icon: 'task_alt', color: 'outline', shadow: 'shadow-glass' },
-              { label: 'Risk Accuracy', value: '98.1%', sub: '', icon: 'crisis_alert', color: 'alert-red', shadow: 'shadow-glow-red' },
-              { label: 'Resource Eff.', value: 'A+', sub: 'Optimal', icon: 'energy_savings_leaf', color: 'signal-green', shadow: 'shadow-glass' }
+              { label: 'Adjusted DIS', value: formatDIS(state?.dis?.total_score || 0), sub: state?.dis?.risk_penalty ? `-${(state.dis.risk_penalty * 100).toFixed(1)} Penalty` : 'Stable', icon: 'psychology', color: 'primary', shadow: 'shadow-glow-cyan' },
+              { label: 'Base Score', value: formatDIS(state?.dis?.base_score || state?.dis?.total_score || 0), sub: 'Raw DIS', icon: 'score', color: 'secondary', shadow: 'shadow-glow-violet' },
+              { label: 'Total Reward', value: formatNumber(state?.metrics?.total_reward || 0), sub: 'pts', icon: 'workspace_premium', color: 'tertiary', shadow: 'shadow-glass' },
+              { label: 'Tasks Done', value: formatNumber(state?.metrics?.completed_tasks || 0), sub: '/ 1000', icon: 'task_alt', color: 'outline', shadow: 'shadow-glass' }
             ].map((kpi, i) => (
               <motion.div 
                 key={i}
@@ -1348,6 +1526,10 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
             <div className="lg:col-span-7 flex flex-col gap-lg">
               
+              {appMode === 'human' && (
+                <LiveRiskMonitor risk={dynamicRisk} momentum={riskMomentum} history={crisisHistory} />
+              )}
+
               <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/20 rounded-2xl p-lg shadow-glass relative overflow-hidden group hover:border-primary/40 transition-colors">
                 <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-[40px] group-hover:bg-primary/20 transition-colors"></div>
                 <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
