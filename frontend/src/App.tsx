@@ -184,6 +184,289 @@ const generateFutureProjections = (state: any) => {
   return { severity, projections };
 };
 
+const generateFailureAnalysis = (metrics: any, dis: any, history: any[], agentType: string) => {
+  const analysis: any = {
+    primaryCause: 'None detected.',
+    severity: 'Low',
+    stability: 'High Consistency',
+    impacts: { budget: 0, risk: 0, workflow: 0 },
+    optimizations: [],
+    timeline: [],
+    heatmap: {
+      critical_success: 0, critical_fail: 0,
+      high_success: 0, high_fail: 0,
+      normal_success: 0, normal_fail: 0
+    },
+    errorDistribution: { urgency: 0, resource: 0, risk: 0 }
+  };
+
+  if (!metrics || !dis) return analysis;
+
+  let failScore = 0;
+
+  // Derive from history (Human Mode)
+  if (agentType === 'human' && history && history.length > 0) {
+    let missedTasks = 0;
+    let falseEscalations = 0;
+    let wastedResources = 0;
+    let stabilityDrops = 0;
+
+    history.forEach((h, i) => {
+      if (h.factors?.indicator === 'red') {
+        failScore += 2;
+        stabilityDrops++;
+        analysis.timeline.push(`T-${i}: Triggered critical penalty during ${h.action.replace('_', ' ')}.`);
+      } else if (h.factors?.indicator === 'yellow') {
+        failScore += 1;
+        stabilityDrops += 0.5;
+      }
+
+      if (h.action === 'veto_task' && h.factors?.riskImpact === 'Unnecessary Escalation') {
+        falseEscalations++;
+        analysis.errorDistribution.risk++;
+        analysis.heatmap.normal_fail++;
+      } else if (h.action === 'allocate_resources' && h.reward < 0) {
+        wastedResources++;
+        analysis.errorDistribution.resource++;
+        analysis.heatmap.normal_fail++;
+      } else if (h.action === 'step' && h.reward < 0) {
+        missedTasks++;
+        analysis.errorDistribution.urgency++;
+        analysis.heatmap.critical_fail++;
+      } else {
+        analysis.heatmap.normal_success++;
+      }
+    });
+
+    if (missedTasks > falseEscalations && missedTasks > wastedResources) {
+      analysis.primaryCause = 'Repeated delayed handling of high-risk tasks.';
+      analysis.optimizations.push('Prioritize Critical tasks before executing standard steps.');
+    } else if (falseEscalations > wastedResources) {
+      analysis.primaryCause = 'Unnecessary escalations leading to workflow degradation.';
+      analysis.optimizations.push('Reduce veto usage when environment risk is Normal.');
+    } else if (wastedResources > 0) {
+      analysis.primaryCause = 'Resource burn exceeded optimal threshold.';
+      analysis.optimizations.push('Optimize allocation timing to prevent capital drain.');
+    } else if (failScore > 0) {
+      analysis.primaryCause = 'Inconsistent operational throughput.';
+    } else {
+      analysis.primaryCause = 'Operational integrity maintained successfully.';
+    }
+
+    if (stabilityDrops > history.length * 0.4) analysis.stability = 'High Volatility';
+    else if (stabilityDrops > history.length * 0.2) analysis.stability = 'Moderate Consistency';
+    else analysis.stability = 'High Consistency';
+
+    analysis.impacts.budget = wastedResources * 50000;
+    analysis.impacts.risk = falseEscalations * 5;
+    analysis.impacts.workflow = missedTasks * 10;
+  } else {
+    // Derive from metrics (AI Agents)
+    const riskFails = metrics.risk_failures || 0;
+    const efficiency = dis.component_scores?.utilization || 1;
+    const correctness = dis.component_scores?.correctness || 1;
+
+    failScore = riskFails * 3 + ((1 - efficiency) * 10) + ((1 - correctness) * 10);
+
+    analysis.errorDistribution.risk = riskFails;
+    analysis.errorDistribution.resource = Math.floor((1 - efficiency) * 10);
+    analysis.errorDistribution.urgency = Math.floor((1 - correctness) * 10);
+
+    if (riskFails >= 2) {
+      analysis.primaryCause = 'Failed to mitigate critical risk thresholds.';
+      analysis.optimizations.push('Implement stricter risk-bounds checking before action execution.');
+      analysis.heatmap.critical_fail = riskFails;
+      analysis.heatmap.high_fail = Math.floor(riskFails / 2);
+    } else if (correctness < 0.8) {
+      analysis.primaryCause = 'Escalation frequency indicates unstable prioritization strategy.';
+      analysis.optimizations.push('Improve prioritization weighting for critical domain tasks.');
+      analysis.heatmap.critical_fail = Math.floor((1 - correctness) * 20);
+    } else if (efficiency < 0.8) {
+      analysis.primaryCause = 'Resource burn exceeded optimal threshold.';
+      analysis.optimizations.push('Allocate resources dynamically based on task urgency.');
+      analysis.heatmap.normal_fail = Math.floor((1 - efficiency) * 15);
+    } else {
+      analysis.primaryCause = 'Minor sub-optimal routing; generally stable.';
+    }
+
+    analysis.heatmap.critical_success = Math.floor(correctness * 10);
+    analysis.heatmap.high_success = Math.floor(correctness * 15);
+    analysis.heatmap.normal_success = Math.floor(efficiency * 20);
+
+    analysis.impacts.budget = Math.floor((1 - efficiency) * 1000000);
+    analysis.impacts.risk = riskFails * 15;
+    analysis.impacts.workflow = Math.floor((1 - correctness) * 100);
+
+    if (failScore > 10) analysis.stability = 'High Volatility';
+    else if (failScore > 5) analysis.stability = 'Moderate Consistency';
+    else analysis.stability = 'High Consistency';
+
+    analysis.timeline.push(`Benchmark initialized with deterministic seed.`);
+    if (riskFails > 0) analysis.timeline.push(`Detected ${riskFails} critical cascading failures during execution loop.`);
+    if (efficiency < 0.8) analysis.timeline.push(`Resource exhaustion triggered halfway through task queue.`);
+  }
+
+  if (failScore >= 10) analysis.severity = 'Critical';
+  else if (failScore >= 5) analysis.severity = 'High';
+  else if (failScore >= 2) analysis.severity = 'Moderate';
+  else analysis.severity = 'Low';
+
+  return analysis;
+};
+
+const FailureAnalysisPanel = ({ metrics, dis, history, agentType }: { metrics: any, dis: any, history: any[], agentType: string }) => {
+  const analysis = generateFailureAnalysis(metrics, dis, history, agentType);
+
+  if (analysis.severity === 'Low' && agentType !== 'human') return null;
+
+  const getSeverityColor = (sev: string) => {
+    if (sev === 'Critical') return 'text-error border-error shadow-glow-red';
+    if (sev === 'High') return 'text-alert-red border-alert-red';
+    if (sev === 'Moderate') return 'text-tertiary-container border-tertiary-container';
+    return 'text-signal-green border-signal-green shadow-glow-cyan';
+  };
+
+  const totalErrors = analysis.errorDistribution.urgency + analysis.errorDistribution.resource + analysis.errorDistribution.risk || 1;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-surface-container/30 backdrop-blur-2xl border border-error/30 rounded-2xl p-lg shadow-glass relative mt-8 overflow-hidden"
+    >
+      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-error via-alert-red to-transparent opacity-50"></div>
+      
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 border-b border-outline-variant/20 pb-4 pl-4 gap-4">
+        <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
+          <span className="material-symbols-outlined text-error">troubleshoot</span>
+          Failure Analysis Report
+        </h3>
+        <div className="flex gap-4 items-center flex-wrap">
+          <div className={`px-3 py-1 rounded-full border text-xs font-label-caps uppercase tracking-widest ${getSeverityColor(analysis.severity)}`}>
+            Severity: {analysis.severity}
+          </div>
+          <div className="px-3 py-1 rounded-full border border-primary/30 text-primary text-xs font-label-caps uppercase tracking-widest shadow-glow-cyan">
+            {analysis.stability}
+          </div>
+        </div>
+      </div>
+
+      <div className="pl-4 grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="col-span-1 xl:col-span-2 space-y-6">
+          <div className="bg-space-900/50 p-4 rounded-xl border border-outline-variant/20">
+            <span className="text-[10px] text-error font-label-caps tracking-widest uppercase mb-1 block">Primary Failure Cause</span>
+            <p className="text-on-surface font-body-lg text-lg tracking-tight">{analysis.primaryCause}</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-space-900/30 p-3 rounded-lg border border-outline-variant/10">
+              <span className="text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 block">Est. Budget Inefficiency</span>
+              <span className="font-data-mono text-error">-${analysis.impacts.budget.toLocaleString()}</span>
+            </div>
+            <div className="bg-space-900/30 p-3 rounded-lg border border-outline-variant/10">
+              <span className="text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 block">Projected Risk Escalation</span>
+              <span className="font-data-mono text-alert-red">+{analysis.impacts.risk}%</span>
+            </div>
+            <div className="bg-space-900/30 p-3 rounded-lg border border-outline-variant/10">
+              <span className="text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 block">Workflow Degradation</span>
+              <span className="font-data-mono text-tertiary-container">{analysis.impacts.workflow}% Drop</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-sm font-label-caps text-on-surface uppercase tracking-widest mb-3">Error Distribution</h4>
+            <div className="w-full h-3 bg-surface-container rounded-full overflow-hidden flex">
+              <div style={{ width: `${(analysis.errorDistribution.urgency / totalErrors) * 100}%` }} className="bg-alert-red h-full"></div>
+              <div style={{ width: `${(analysis.errorDistribution.resource / totalErrors) * 100}%` }} className="bg-tertiary-container h-full"></div>
+              <div style={{ width: `${(analysis.errorDistribution.risk / totalErrors) * 100}%` }} className="bg-error h-full"></div>
+            </div>
+            <div className="flex justify-between text-[10px] text-on-surface-variant uppercase tracking-widest pt-1">
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-alert-red"></div> Missed Urgency</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-tertiary-container"></div> Wasted Resources</span>
+              <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-error"></div> Risk Escalations</span>
+            </div>
+          </div>
+
+          {analysis.timeline.length > 0 && (
+            <div className="bg-space-900/40 border border-outline-variant/20 p-4 rounded-xl">
+              <h4 className="text-sm font-label-caps text-on-surface uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">linear_scale</span>
+                Failure Timeline
+              </h4>
+              <ul className="space-y-2 relative before:absolute before:inset-y-0 before:left-[5px] before:w-[2px] before:bg-outline-variant/20">
+                {analysis.timeline.map((event: string, i: number) => (
+                  <li key={i} className="text-xs text-on-surface-variant pl-4 relative">
+                    <div className="absolute left-0 top-1.5 w-[12px] h-[12px] rounded-full bg-error border-2 border-space-900 shadow-glow-red"></div>
+                    {event}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="col-span-1 space-y-6">
+          <div className="bg-space-900/40 border border-outline-variant/20 p-4 rounded-xl">
+            <h4 className="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest mb-3 flex items-center justify-between">
+              Risk vs Accuracy Heatmap
+              <span className="material-symbols-outlined text-[14px]">grid_view</span>
+            </h4>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="text-[9px] text-center text-on-surface-variant mb-1">Normal Urgency</div>
+              <div className="text-[9px] text-center text-on-surface-variant mb-1">Critical Urgency</div>
+              
+              {/* Normal Success */}
+              <div className="h-12 bg-signal-green/20 border border-signal-green/40 rounded flex items-center justify-center text-signal-green font-data-mono text-sm relative group">
+                {analysis.heatmap.normal_success}
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-space-900 text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap transition-opacity z-10">Successful Normal</div>
+              </div>
+              
+              {/* Critical Success */}
+              <div className="h-12 bg-primary/20 border border-primary/40 rounded flex items-center justify-center text-primary font-data-mono text-sm relative group">
+                {analysis.heatmap.critical_success}
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 -right-4 bg-space-900 text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap transition-opacity z-10">Successful Critical</div>
+              </div>
+
+              {/* Normal Fail */}
+              <div className={`h-12 rounded flex items-center justify-center font-data-mono text-sm relative group ${analysis.heatmap.normal_fail > 0 ? 'bg-tertiary-container/30 border border-tertiary-container text-tertiary-container shadow-glow-yellow' : 'bg-outline-variant/10 border border-outline-variant/20 text-on-surface-variant'}`}>
+                {analysis.heatmap.normal_fail}
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-space-900 text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap transition-opacity z-10">Failed Normal (Waste)</div>
+              </div>
+
+              {/* Critical Fail */}
+              <div className={`h-12 rounded flex items-center justify-center font-data-mono text-sm relative group ${analysis.heatmap.critical_fail > 0 ? 'bg-error/30 border border-error text-error shadow-glow-red animate-pulse' : 'bg-outline-variant/10 border border-outline-variant/20 text-on-surface-variant'}`}>
+                {analysis.heatmap.critical_fail}
+                <div className="opacity-0 group-hover:opacity-100 absolute -top-8 -right-4 bg-space-900 text-[9px] px-2 py-1 rounded shadow-lg whitespace-nowrap transition-opacity z-10">Failed Critical (Escalated)</div>
+              </div>
+            </div>
+            <div className="text-center text-[9px] text-on-surface-variant mt-3 italic">
+              Heatmap reveals correlation between task urgency and agent failure rates.
+            </div>
+          </div>
+
+          <div className="bg-primary/10 border border-primary/30 p-4 rounded-xl shadow-[inset_0_0_20px_rgba(56,245,255,0.05)]">
+            <h4 className="text-[10px] font-label-caps text-primary uppercase tracking-widest mb-3 flex items-center gap-2">
+              <span className="material-symbols-outlined text-[14px]">model_training</span>
+              Recommended Optimizations
+            </h4>
+            <ul className="space-y-2">
+              {analysis.optimizations.map((opt: string, idx: number) => (
+                <li key={idx} className="text-xs text-on-surface flex items-start gap-2">
+                  <span className="material-symbols-outlined text-[14px] text-primary shrink-0 mt-0.5">check_circle</span>
+                  <span className="leading-relaxed">{opt}</span>
+                </li>
+              ))}
+              {analysis.optimizations.length === 0 && (
+                <li className="text-xs text-on-surface-variant italic">Agent operates at optimal baseline. No immediate corrections required.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const ProjectedConsequences = ({ state }: { state: any }) => {
   const { severity, projections } = generateFutureProjections(state);
   
@@ -1039,6 +1322,28 @@ export default function App() {
               </motion.div>
             ))}
           </motion.section>
+
+          <AnimatePresence>
+            {simulationStatus === 'completed' && humanFinalMetrics && (
+              <FailureAnalysisPanel 
+                metrics={state?.metrics} 
+                dis={state?.dis} 
+                history={history} 
+                agentType="human" 
+              />
+            )}
+            
+            {appMode === 'ai' && !isBenchmarking && state?.metrics && state?.dis && (
+               <FailureAnalysisPanel 
+                 metrics={state.metrics} 
+                 dis={state.dis} 
+                 history={[]} 
+                 agentType="mock_llm" 
+               />
+            )}
+          </AnimatePresence>
+
+          <div className="h-md"></div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
             <div className="lg:col-span-7 flex flex-col gap-lg">
