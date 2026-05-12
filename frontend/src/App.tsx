@@ -3,6 +3,138 @@ import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const generateExplainabilityFactors = (action: string, activeTask: any, prevState: any, result: any) => {
+  let explanation = '';
+  let urgencyImpact = 'Neutral';
+  let riskImpact = 'Neutral';
+  let resourceImpact = 'Neutral';
+  let indicator: 'green' | 'yellow' | 'red' = 'yellow';
+
+  const taskUrgency = activeTask?.urgency || 'Normal';
+  const taskImportance = activeTask?.importance || 'Normal';
+  const prevRisk = prevState?.risk_level || 'Normal';
+  const newRisk = result.observation?.risk_level || 'Normal';
+  const reward = result.reward || 0;
+
+  if (action === 'prioritize_task') {
+    if (taskUrgency === 'Critical' || taskUrgency === 'High') {
+      explanation = `Prioritized due to ${taskUrgency} urgency and ${taskImportance} operational impact.`;
+      urgencyImpact = 'Resolved High Urgency';
+      indicator = reward > 0 ? 'green' : 'yellow';
+    } else {
+      explanation = `Prioritized standard task to maintain operational flow.`;
+      urgencyImpact = 'Handled Standard Urgency';
+      indicator = 'yellow';
+    }
+  } else if (action === 'allocate_resources') {
+    explanation = `Resources allocated to ensure task completion.`;
+    resourceImpact = 'High Resource Utilization';
+    indicator = 'yellow';
+    if (reward > 10) indicator = 'green';
+    if (reward < 0) indicator = 'red';
+  } else if (action === 'veto_task') {
+    if (prevRisk === 'Elevated' || prevRisk === 'High') {
+      explanation = `Escalated/Vetoed because risk exceeded safety threshold.`;
+      riskImpact = 'Mitigated High Risk';
+      indicator = 'green';
+    } else {
+      explanation = `Vetoed standard task; potential missed opportunity.`;
+      riskImpact = 'Unnecessary Escalation';
+      indicator = 'red';
+    }
+  } else if (action === 'step') {
+    explanation = `Routine operational step executed.`;
+    indicator = reward >= 0 ? 'green' : 'yellow';
+  } else {
+    explanation = result.info?.explanation || 'Action executed based on current state parameters.';
+  }
+
+  if (newRisk === 'High' && prevRisk !== 'High') riskImpact = 'Increased Risk Profile';
+  if (newRisk === 'Normal' && prevRisk !== 'Normal') riskImpact = 'Stabilized Risk Profile';
+  
+  if (reward > 20 && indicator !== 'red') indicator = 'green';
+  if (reward < -10) indicator = 'red';
+
+  return { explanation, urgencyImpact, riskImpact, resourceImpact, indicator };
+};
+
+const TimelineItem = ({ item }: { item: any }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  const getIndicatorColor = (indicator: string) => {
+    if (indicator === 'green') return 'bg-signal-green shadow-[0_0_8px_rgba(52,211,153,0.8)] border-signal-green';
+    if (indicator === 'yellow') return 'bg-tertiary-container shadow-[0_0_8px_rgba(255,177,59,0.8)] border-tertiary-container';
+    if (indicator === 'red') return 'bg-alert-red shadow-glow-red border-alert-red';
+    return 'bg-outline-variant border-outline-variant';
+  };
+
+  const getTextColor = (indicator: string) => {
+    if (indicator === 'green') return 'text-signal-green';
+    if (indicator === 'yellow') return 'text-tertiary-container';
+    if (indicator === 'red') return 'text-alert-red';
+    return 'text-on-surface';
+  };
+
+  return (
+    <motion.div 
+      layout
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="border-l border-outline-variant/30 pl-4 py-2 relative group hover:border-primary/50 transition-colors"
+    >
+      <div className={`absolute w-2 h-2 rounded-full border -left-[4px] top-3 transition-all ${getIndicatorColor(item.factors?.indicator || 'yellow')}`}></div>
+      
+      <div 
+        className="flex justify-between items-start mb-1 cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-label-caps text-[10px] text-primary uppercase tracking-widest">{item.action.replace('_', ' ')}</span>
+          <span className="material-symbols-outlined text-[14px] text-on-surface-variant group-hover:text-primary transition-colors">
+            {expanded ? 'expand_less' : 'expand_more'}
+          </span>
+        </div>
+        <span className={`text-[10px] font-bold ${getTextColor(item.factors?.indicator || 'yellow')}`}>
+          {item.reward >= 0 ? '+' : ''}{item.reward} pts
+        </span>
+      </div>
+      
+      <p className="text-on-surface-variant text-xs mb-1 italic font-serif">"{item.factors?.explanation || item.explanation}"</p>
+
+      <AnimatePresence>
+        {expanded && item.factors && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden mt-3"
+          >
+            <div className="bg-space-900/50 border border-outline-variant/20 rounded-lg p-3">
+              <h4 className="font-label-caps text-[10px] text-primary mb-2 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">analytics</span> Decision Factors
+              </h4>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Urgency</span>
+                  <span className="text-[10px] text-on-surface">{item.factors.urgencyImpact}</span>
+                </div>
+                <div>
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Risk Impact</span>
+                  <span className="text-[10px] text-on-surface">{item.factors.riskImpact}</span>
+                </div>
+                <div>
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Resources</span>
+                  <span className="text-[10px] text-on-surface">{item.factors.resourceImpact}</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [state, setState] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -57,6 +189,7 @@ export default function App() {
     try {
       setLoading(true);
       const activeTask = state?.observation?.active_tasks?.[0];
+      const prevState = state?.observation;
       const payload: ActionPayload = {
         action_type: actionType,
         task_id: activeTask?.id || 'T1',
@@ -66,12 +199,15 @@ export default function App() {
       const result = await api.step(payload);
       setState({ observation: result.observation, metrics: result.metrics, dis: result.dis });
       
+      const factors = generateExplainabilityFactors(actionType, activeTask, prevState, result);
+      
       const newHistoryItem = {
         id: Date.now(),
         action: actionType,
         reward: result.reward || 0,
-        explanation: result.info?.explanation || 'Selected due to high urgency and high importance.',
-        outcome: result.info?.outcome || 'Action executed successfully.'
+        explanation: factors.explanation,
+        outcome: result.info?.outcome || 'Action executed successfully.',
+        factors
       };
       setHistory(prev => [newHistoryItem, ...prev]);
       setError(null);
@@ -511,21 +647,7 @@ export default function App() {
                 <div className="flex flex-col gap-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar pl-4">
                   <AnimatePresence>
                     {history.length > 0 ? history.map((item) => (
-                      <motion.div 
-                        key={item.id} 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="border-l border-outline-variant/30 pl-4 py-2 relative group hover:border-primary/50 transition-colors"
-                      >
-                        <div className="absolute w-2 h-2 rounded-full bg-surface-container border border-primary -left-[4px] top-3 group-hover:bg-primary group-hover:shadow-glow-cyan transition-all"></div>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-label-caps text-[10px] text-primary uppercase tracking-widest">{item.action}</span>
-                          <span className={`text-[10px] font-bold ${item.reward >= 0 ? 'text-signal-green' : 'text-error'}`}>
-                            {item.reward >= 0 ? '+' : ''}{item.reward} pts
-                          </span>
-                        </div>
-                        <p className="text-on-surface-variant text-xs mb-1 italic font-serif">"{item.explanation}"</p>
-                      </motion.div>
+                      <TimelineItem key={item.id} item={item} />
                     )) : (
                       <div className="text-on-surface-variant text-xs italic opacity-50">Timeline initialized. Awaiting sequence...</div>
                     )}
