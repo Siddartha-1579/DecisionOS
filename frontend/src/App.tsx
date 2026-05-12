@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function App() {
   const [state, setState] = useState<any>(null);
@@ -166,327 +167,392 @@ export default function App() {
 
   const getDomainColor = (domain: string) => {
     const d = domain.toLowerCase();
-    if (d.includes('logistic')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    if (d.includes('finance')) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-    if (d.includes('operation')) return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-    return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+    if (d.includes('logistic')) return 'bg-blue-500/10 text-blue-glow border-blue-glow/30 shadow-[0_0_10px_rgba(96,165,250,0.2)]';
+    if (d.includes('finance')) return 'bg-emerald-500/10 text-signal-green border-signal-green/30 shadow-[0_0_10px_rgba(52,211,153,0.2)]';
+    if (d.includes('operation')) return 'bg-purple-500/10 text-electric-violet border-electric-violet/30 shadow-[0_0_10px_rgba(139,92,246,0.2)]';
+    return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
   };
 
-  const renderLeaderboard = () => {
+  const renderLeaderboardTowers = () => {
     const list = leaderboard.length > 0 ? leaderboard : getMockLeaderboard();
-    return list.map((item, index) => {
-      const isWinner = item.agent_name === 'mock_llm';
-      return (
-        <tr key={index} className={isWinner ? "bg-primary/5 border-l-4 border-l-primary border-b border-outline-variant/20 hover:bg-primary/10 transition-colors" : "border-b border-outline-variant/20 hover:bg-surface-container-highest/30 transition-colors"}>
-          <td className={`py-4 px-4 flex items-center gap-2 ${isWinner ? 'text-primary font-bold' : ''}`}>
-            <span className={`w-2 h-2 rounded-full ${isWinner ? 'bg-primary shadow-[0_0_8px_rgba(138,235,255,0.8)]' : index === 0 ? 'bg-outline' : 'bg-secondary'}`}></span>
-            {item.agent_name === 'random' ? 'Random Baseline' : item.agent_name === 'rule_based' ? 'Rule-Based Heuristic' : 'DecisionOS Mock LLM'}
-          </td>
-          <td className={`py-4 px-4 text-right ${isWinner ? 'text-primary font-bold' : 'text-on-surface'}`}>
-            <div className="flex flex-col items-end">
-              <span>{formatDIS(item.final_dis)}</span>
-              <div className="w-24 h-1.5 bg-surface-container-highest mt-1 rounded-full overflow-hidden">
-                <div className={`h-full ${isWinner ? 'bg-primary' : 'bg-outline'}`} style={{ width: `${item.final_dis * 100}%` }}></div>
+    return (
+      <div className="flex flex-col sm:flex-row items-end justify-center gap-8 sm:gap-16 mt-12 h-64 border-b border-outline-variant/30 pb-4">
+        {list.map((item, index) => {
+          const isWinner = item.agent_name === 'mock_llm';
+          const heightPercent = Math.max(item.final_dis * 100, 10);
+          return (
+            <motion.div 
+              key={index} 
+              className="flex flex-col items-center relative group"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: '100%', opacity: 1 }}
+              transition={{ duration: 1, delay: index * 0.2, type: "spring" as const }}
+            >
+              {/* Floating Meta Data */}
+              <motion.div 
+                className={`absolute -top-16 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity ${isWinner ? 'text-primary' : 'text-on-surface'}`}
+                initial={{ y: 10 }}
+                whileHover={{ y: 0 }}
+              >
+                <span className="font-data-mono text-xl font-bold">{formatDIS(item.final_dis)}</span>
+                <span className="font-label-caps text-xs">{item.completed_tasks} tasks</span>
+              </motion.div>
+
+              {/* Energy Pillar */}
+              <motion.div 
+                className={`w-16 rounded-t-lg relative overflow-hidden ${isWinner ? 'bg-primary/20 border border-primary/50 shadow-glow-cyan-lg' : 'bg-surface-container border border-outline-variant/50 shadow-glass'}`}
+                style={{ height: `${heightPercent}%` }}
+                whileHover={{ scale: 1.05 }}
+              >
+                {isWinner && (
+                  <motion.div 
+                    className="absolute inset-0 bg-gradient-to-t from-transparent to-primary/40"
+                    animate={{ y: ['100%', '-100%'] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "linear" as const }}
+                  />
+                )}
+              </motion.div>
+
+              {/* Base Label */}
+              <div className="mt-4 font-label-caps text-xs text-center uppercase tracking-widest text-on-surface-variant">
+                {item.agent_name.replace('_', ' ')}
               </div>
-            </div>
-          </td>
-          <td className={`py-4 px-4 text-right text-on-surface`}>{formatNumber(item.completed_tasks)}</td>
-          <td className={`py-4 px-4 text-right ${item.risk_failures > 50 ? 'text-error' : 'text-on-surface'}`}>{item.risk_failures}</td>
-          <td className={`py-4 px-4 font-label-caps text-label-caps ${isWinner ? 'text-primary' : 'text-on-surface'}`}>
-            {isWinner ? <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">pulse_alert</span> Active</span> : 'Completed'}
-          </td>
-        </tr>
-      );
-    });
+            </motion.div>
+          );
+        })}
+      </div>
+    );
   };
 
   const isRiskElevated = state?.observation?.risk_level === 'Elevated' || state?.observation?.risk_level === 'High';
 
+  // Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1, transition: { type: "spring" as const, stiffness: 100 } }
+  };
+
+  const hoverFloat = {
+    scale: 1.02,
+    y: -5,
+    transition: { type: "spring" as const, stiffness: 300, damping: 20 }
+  };
+
   return (
     <>
-      {loading && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-surface-container border border-primary/20 p-6 rounded-xl flex flex-col items-center gap-4 shadow-[0_0_30px_rgba(138,235,255,0.15)]">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <span className="font-label-caps tracking-widest text-primary animate-pulse">AI agent is making decisions...</span>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {loading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-space-900/80 backdrop-blur-md flex items-center justify-center"
+          >
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+              className="relative w-32 h-32 flex items-center justify-center"
+            >
+              <div className="absolute inset-0 rounded-full border-t-2 border-primary shadow-glow-cyan opacity-70"></div>
+              <div className="absolute inset-2 rounded-full border-b-2 border-secondary shadow-glow-violet opacity-50" style={{ animationDirection: 'reverse' }}></div>
+              <span className="font-label-caps tracking-widest text-primary animate-pulse absolute">DECISION.OS</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-slate-950/80 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.4)] border-b border-white/10 font-['Space_Grotesk'] antialiased">
+      <motion.header 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 20 }}
+        className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-space-900/50 backdrop-blur-xl border-b border-outline-variant/20 font-['Space_Grotesk']"
+      >
         <div className="flex items-center gap-4">
-          <span className="text-2xl font-bold tracking-tight text-cyan-400">DecisionOS</span>
+          <motion.span 
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ repeat: Infinity, duration: 4 }}
+            className="text-2xl font-bold tracking-tight text-primary drop-shadow-[0_0_8px_rgba(56,245,255,0.8)]"
+          >
+            DecisionOS
+          </motion.span>
         </div>
         <div className="flex items-center gap-6">
-          <button onClick={handleSimulate} disabled={loading} className="bg-primary/10 hover:bg-primary/20 text-cyan-400 px-4 py-2 rounded border border-cyan-400/30 transition-colors duration-200 active:scale-95 flex items-center gap-2">
+          <motion.button 
+            whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(56,245,255,0.4)" }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleSimulate} disabled={loading} 
+            className="bg-primary/10 text-primary px-4 py-2 rounded-full border border-primary/30 transition-colors duration-200 flex items-center gap-2"
+          >
             <span className="material-symbols-outlined text-sm">play_arrow</span>
             <span className="font-label-caps text-label-caps">Execute Simulation</span>
-          </button>
-          <div className="flex items-center gap-4 border-l border-white/10 pl-6">
-            <button className="text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors duration-200 p-2 rounded-full active:scale-95 relative">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-cyan-400 rounded-full"></span>
-            </button>
-          </div>
+          </motion.button>
         </div>
-      </header>
+      </motion.header>
 
-      <nav className="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 w-64 bg-slate-950/90 backdrop-blur-xl border-r border-white/10 shadow-2xl shadow-cyan-900/10 font-['Space_Grotesk'] text-sm tracking-wide pt-20 pb-6 px-4">
+      <nav className="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 w-64 bg-space-800/60 backdrop-blur-2xl border-r border-outline-variant/20 pt-20 pb-6 px-4">
         <div className="mb-8 px-4">
-          <h2 className="text-cyan-400 font-bold uppercase tracking-widest text-xs mb-1">Research Terminal</h2>
-          <p className="text-slate-500 text-[10px] uppercase">Clinical Precision AI</p>
+          <h2 className="text-primary font-bold uppercase tracking-widest text-xs mb-1">Research Terminal</h2>
+          <p className="text-on-surface-variant text-[10px] uppercase">Clinical Precision AI</p>
         </div>
-        <button onClick={handleReset} disabled={loading} className="w-full bg-cyan-400 text-slate-950 hover:bg-cyan-300 font-bold py-3 px-4 rounded mb-8 flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+        <motion.button 
+          whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(56,245,255,0.3)" }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleReset} disabled={loading} 
+          className="w-full bg-primary/20 border border-primary/50 text-primary hover:bg-primary/30 font-label-caps tracking-widest py-3 px-4 rounded-lg mb-8 flex items-center justify-center gap-2 shadow-glow-cyan transition-colors"
+        >
           <span className="material-symbols-outlined text-sm">restart_alt</span>
-          RESET ENVIRONMENT
-        </button>
-        <div className="flex flex-col gap-1 flex-grow">
-          <a className="flex items-center gap-3 px-4 py-3 rounded bg-cyan-500/10 text-cyan-400 border-r-2 border-cyan-400 hover:translate-x-1 transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">analytics</span>
-            <span>Benchmark Dashboard</span>
-          </a>
-          <a className="flex items-center gap-3 px-4 py-3 rounded text-slate-500 hover:text-cyan-200 hover:bg-white/5 hover:translate-x-1 transition-all duration-300" href="#">
-            <span className="material-symbols-outlined">leaderboard</span>
-            <span>Agent Leaderboard</span>
-          </a>
-        </div>
+          RESET ENV
+        </motion.button>
       </nav>
 
-      <main className="lg:ml-64 pt-16 min-h-screen flex flex-col relative z-10">
-        <div className="absolute top-0 left-1/4 w-[800px] h-[400px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
-        <div className="p-gutter max-w-container-max mx-auto w-full flex flex-col gap-xl relative z-10">
-          
+      <main className="lg:ml-64 pt-20 min-h-screen flex flex-col relative z-10 overflow-hidden">
+        {/* Animated Background Orbs */}
+        <motion.div 
+          animate={{ x: [0, 50, 0], y: [0, 30, 0] }}
+          transition={{ repeat: Infinity, duration: 15, ease: "easeInOut" }}
+          className="absolute top-10 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"
+        />
+        <motion.div 
+          animate={{ x: [0, -40, 0], y: [0, -50, 0] }}
+          transition={{ repeat: Infinity, duration: 20, ease: "easeInOut" }}
+          className="absolute bottom-20 right-1/4 w-[500px] h-[500px] bg-secondary/10 blur-[100px] rounded-full pointer-events-none"
+        />
+
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="p-gutter max-w-container-max mx-auto w-full flex flex-col gap-xl relative z-10"
+        >
           {error && (
-            <div className="bg-error/10 border border-error/20 p-4 rounded-lg flex items-center justify-between mt-4">
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-error/10 border border-error/30 p-4 rounded-lg flex items-center justify-between shadow-glow-red">
               <span className="text-error font-body-sm">{error}</span>
-              <button onClick={fetchState} className="text-error underline text-sm hover:text-error-container">Retry</button>
-            </div>
+              <button onClick={fetchState} className="text-error underline text-sm">Retry</button>
+            </motion.div>
           )}
 
-          <section className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-lg border-b border-outline-variant/30 pb-xl pt-md mt-4">
-            <div className="max-w-2xl">
+          <motion.section variants={itemVariants} className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-lg border-b border-outline-variant/30 pb-xl pt-4">
+            <div className="max-w-2xl relative">
+              <motion.div 
+                className="absolute -left-8 top-2 w-1 h-12 bg-primary rounded-full shadow-glow-cyan"
+                initial={{ height: 0 }}
+                animate={{ height: 48 }}
+                transition={{ duration: 1, delay: 0.5 }}
+              />
               <h1 className="font-display-lg text-display-lg text-on-surface mb-xs tracking-tight">
-                Decision<span className="text-primary">OS</span>
+                Decision<span className="text-primary drop-shadow-[0_0_15px_rgba(56,245,255,0.6)]">OS</span>
               </h1>
               <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
                 Multi-Domain Benchmark for AI Decision-Making Under Real-World Constraints.
               </p>
             </div>
             <div className="flex items-center gap-md">
-              <button onClick={handleCompareAgents} disabled={loading} className="bg-surface-container-highest border border-outline-variant hover:border-secondary hover:text-secondary text-on-surface font-label-caps text-label-caps px-6 py-3 rounded-DEFAULT transition-all shadow-sm flex items-center gap-2">
+              <motion.button 
+                whileHover={hoverFloat}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCompareAgents} disabled={loading} 
+                className="bg-surface-container border border-outline-variant hover:border-secondary hover:shadow-glow-violet text-on-surface font-label-caps text-label-caps px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+              >
                 <span className="material-symbols-outlined text-sm">compare_arrows</span>
                 COMPARE AGENTS
-              </button>
-              <button onClick={handleSimulate} disabled={loading} className="bg-primary hover:bg-primary-container text-on-primary font-label-caps text-label-caps px-6 py-3 rounded-DEFAULT transition-all shadow-[0_0_20px_rgba(138,235,255,0.3)] flex items-center gap-2">
+              </motion.button>
+              <motion.button 
+                whileHover={hoverFloat}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSimulate} disabled={loading} 
+                className="bg-primary/20 border border-primary/50 text-primary font-label-caps text-label-caps px-6 py-3 rounded-lg shadow-glow-cyan hover:bg-primary/30 transition-colors flex items-center gap-2"
+              >
                 <span className="material-symbols-outlined text-sm">science</span>
                 {loading ? 'SIMULATING...' : 'RUN SIMULATION'}
-              </button>
+              </motion.button>
             </div>
-          </section>
+          </motion.section>
 
-          <section className="grid grid-cols-2 md:grid-cols-5 gap-md">
-            <div className="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
-              <div className="flex items-center justify-between mb-sm">
-                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Decision Intel</span>
-                <span className="material-symbols-outlined text-primary text-[18px]">psychology</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-h2 text-h2 text-on-surface">{formatDIS(state?.dis?.total_score || 0)}</span>
-                <span className="font-body-sm text-body-sm text-primary">+2.1%</span>
-              </div>
-            </div>
-            <div className="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-secondary/50 to-transparent"></div>
-              <div className="flex items-center justify-between mb-sm">
-                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Total Reward</span>
-                <span className="material-symbols-outlined text-secondary text-[18px]">workspace_premium</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-h2 text-h2 text-on-surface">{formatNumber(state?.metrics?.total_reward || 0)}</span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">pts</span>
-              </div>
-            </div>
-            <div className="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
-              <div className="flex items-center justify-between mb-sm">
-                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Tasks Done</span>
-                <span className="material-symbols-outlined text-outline text-[18px]">task_alt</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-h2 text-h2 text-on-surface">{formatNumber(state?.metrics?.completed_tasks || 0)}</span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">/ 1000</span>
-              </div>
-            </div>
-            <div className="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
-              <div className="flex items-center justify-between mb-sm">
-                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Risk Accuracy</span>
-                <span className="material-symbols-outlined text-tertiary-container text-[18px]">crisis_alert</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-h2 text-h2 text-on-surface">98.1%</span>
-              </div>
-            </div>
-            <div className="bg-surface-container-low/80 backdrop-blur-xl border border-outline-variant/30 rounded-lg p-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] relative overflow-hidden">
-              <div className="flex items-center justify-between mb-sm">
-                <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest">Resource Eff.</span>
-                <span className="material-symbols-outlined text-primary-fixed-dim text-[18px]">energy_savings_leaf</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-h2 text-h2 text-on-surface">A+</span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">Optimal</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-surface-container-highest/20 border border-primary/20 rounded-xl p-md">
-            <h3 className="font-h3 text-h3 text-primary mb-2 flex items-center gap-2">
-              <span className="material-symbols-outlined">science</span>
-              Research Insight
-            </h3>
-            <p className="text-on-surface-variant font-body-md leading-relaxed">
-              DecisionOS evaluates AI agents across sequential decision tasks under real-world constraints. Unlike static benchmarks, it measures prioritization, resource allocation, and risk handling using deterministic graders and a unified Decision Intelligence Score (DIS).
-            </p>
-          </section>
+          <motion.section variants={containerVariants} className="grid grid-cols-2 md:grid-cols-5 gap-md perspective-1000">
+            {[
+              { label: 'Decision Intel', value: formatDIS(state?.dis?.total_score || 0), sub: '+2.1%', icon: 'psychology', color: 'primary', shadow: 'shadow-glow-cyan' },
+              { label: 'Total Reward', value: formatNumber(state?.metrics?.total_reward || 0), sub: 'pts', icon: 'workspace_premium', color: 'secondary', shadow: 'shadow-glow-violet' },
+              { label: 'Tasks Done', value: formatNumber(state?.metrics?.completed_tasks || 0), sub: '/ 1000', icon: 'task_alt', color: 'outline', shadow: 'shadow-glass' },
+              { label: 'Risk Accuracy', value: '98.1%', sub: '', icon: 'crisis_alert', color: 'alert-red', shadow: 'shadow-glow-red' },
+              { label: 'Resource Eff.', value: 'A+', sub: 'Optimal', icon: 'energy_savings_leaf', color: 'signal-green', shadow: 'shadow-glass' }
+            ].map((kpi, i) => (
+              <motion.div 
+                key={i}
+                variants={itemVariants}
+                whileHover={{ y: -10, scale: 1.05, rotateX: 5, rotateY: -5 }}
+                className={`bg-surface-container/40 backdrop-blur-lg border border-outline-variant/30 rounded-2xl p-md relative overflow-hidden group hover:${kpi.shadow} transition-all duration-300 transform-gpu`}
+              >
+                <div className={`absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-${kpi.color}/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                <div className="flex items-center justify-between mb-sm">
+                  <span className="font-label-caps text-[10px] text-on-surface-variant uppercase tracking-widest">{kpi.label}</span>
+                  <span className={`material-symbols-outlined text-${kpi.color} text-[16px] drop-shadow-md`}>{kpi.icon}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-h2 text-h2 text-on-surface">{kpi.value}</span>
+                  <span className={`font-body-sm text-xs text-${kpi.color}`}>{kpi.sub}</span>
+                </div>
+              </motion.div>
+            ))}
+          </motion.section>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start">
             <div className="lg:col-span-7 flex flex-col gap-lg">
-              <div className="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
+              
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/20 rounded-2xl p-lg shadow-glass relative overflow-hidden group hover:border-primary/40 transition-colors">
+                <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-[40px] group-hover:bg-primary/20 transition-colors"></div>
                 <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">public</span>
                   Current Environment State
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm">
-                  <div className="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
-                    <span className="font-label-caps text-label-caps text-on-surface-variant block mb-1">Budget</span>
-                    <span className="font-data-mono text-data-mono text-primary">{formatBudget(state?.observation?.budget || 0)}</span>
-                  </div>
-                  <div className="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
-                    <span className="font-label-caps text-label-caps text-on-surface-variant block mb-1">Time Elapsed</span>
-                    <span className="font-data-mono text-data-mono text-secondary">T+{state?.observation?.time_elapsed || 0}:00</span>
-                  </div>
-                  <div className="bg-surface-container-highest/50 rounded-lg p-sm border border-outline-variant/20">
-                    <span className="font-label-caps text-label-caps text-on-surface-variant block mb-1">Workforce</span>
-                    <span className="font-data-mono text-data-mono text-on-surface">{formatNumber(state?.observation?.workforce || 0)} Units</span>
-                  </div>
-                  <div className={`bg-surface-container-highest/50 rounded-lg p-sm border ${isRiskElevated ? 'border-error/20 bg-error/5' : 'border-outline-variant/20'}`}>
-                    <span className={`font-label-caps text-label-caps ${isRiskElevated ? 'text-error' : 'text-on-surface-variant'} block mb-1`}>Risk Level</span>
-                    <span className={`font-data-mono text-data-mono ${isRiskElevated ? 'text-error' : 'text-on-surface'}`}>{state?.observation?.risk_level || 'Normal'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
-                <div className="flex justify-between items-center mb-md">
-                  <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
-                    <span className="material-symbols-outlined text-secondary">list_alt</span>
-                    Active Task Queue
-                  </h3>
-                  <button className="font-label-caps text-label-caps text-primary hover:text-primary-container transition-colors">View All</button>
-                </div>
-                <div className="flex flex-col gap-sm">
-                  {(state?.observation?.active_tasks?.slice(0,3) || []).map((task: any, i: number) => (
-                    <div key={task.id || i} className="bg-surface-container-highest/40 hover:bg-surface-container-highest/80 transition-colors border border-outline-variant/20 rounded-lg p-md flex flex-col sm:flex-row items-start sm:items-center justify-between group cursor-pointer gap-4">
-                      <div className="flex items-center gap-md">
-                        <div className={`w-10 h-10 rounded-full ${i % 2 === 0 ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-secondary/10 border-secondary/20 text-secondary'} flex items-center justify-center border shrink-0`}>
-                          <span className="material-symbols-outlined text-sm">{i % 2 === 0 ? 'local_hospital' : 'account_balance'}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-body-md text-body-md text-on-surface font-medium mb-1">{task.title || `Task ${task.id}`}</h4>
-                          <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${getDomainColor(task.domain || 'General')}`}>
-                            {task.domain || 'General'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 text-right self-end sm:self-auto">
-                        <div>
-                          <span className={`font-label-caps text-label-caps ${task.urgency === 'Critical' ? 'text-error' : 'text-tertiary-container'} block`}>Urgency</span>
-                          <span className="font-data-mono text-data-mono text-on-surface text-sm">{task.urgency || 'Normal'}</span>
-                        </div>
-                      </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm relative z-10">
+                  {[
+                    { label: 'Budget', value: formatBudget(state?.observation?.budget || 0), color: 'text-primary' },
+                    { label: 'Time Elapsed', value: `T+${state?.observation?.time_elapsed || 0}:00`, color: 'text-secondary' },
+                    { label: 'Workforce', value: `${formatNumber(state?.observation?.workforce || 0)} U`, color: 'text-on-surface' },
+                    { label: 'Risk Level', value: state?.observation?.risk_level || 'Normal', color: isRiskElevated ? 'text-error drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]' : 'text-on-surface' }
+                  ].map((stat, i) => (
+                    <div key={i} className={`bg-space-900/50 rounded-xl p-sm border ${i === 3 && isRiskElevated ? 'border-error/40 shadow-glow-red' : 'border-outline-variant/20'}`}>
+                      <span className="font-label-caps text-[10px] text-on-surface-variant block mb-1">{stat.label}</span>
+                      <span className={`font-data-mono text-sm sm:text-base ${stat.color}`}>{stat.value}</span>
                     </div>
                   ))}
-                  {(!state?.observation?.active_tasks || state.observation.active_tasks.length === 0) && (
-                    <div className="text-on-surface-variant text-center p-4">No active tasks</div>
-                  )}
                 </div>
-              </div>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass">
+                <div className="flex justify-between items-center mb-md">
+                  <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]">layers</span>
+                    Active Task Stack
+                  </h3>
+                </div>
+                <div className="relative pt-2 pb-8 perspective-1000">
+                  <AnimatePresence>
+                    {(state?.observation?.active_tasks?.slice(0, 4) || []).map((task: any, i: number) => (
+                      <motion.div 
+                        key={task.id || i} 
+                        initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                        animate={{ 
+                          opacity: 1 - (i * 0.2), 
+                          y: i * 15, 
+                          scale: 1 - (i * 0.05),
+                          zIndex: 10 - i
+                        }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        whileHover={{ y: (i * 15) - 10, scale: (1 - (i * 0.05)) + 0.02, zIndex: 20 }}
+                        className={`absolute w-full bg-space-800 border border-outline-variant/30 rounded-xl p-md flex items-center justify-between shadow-glass cursor-pointer`}
+                      >
+                        <div className="flex items-center gap-md">
+                          <div className={`w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center border border-outline-variant/20 shrink-0`}>
+                            <span className="material-symbols-outlined text-sm text-on-surface">{i === 0 ? 'priority_high' : 'schedule'}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-body-md text-sm text-on-surface font-medium mb-1">{task.title || `Task ${task.id}`}</h4>
+                            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border ${getDomainColor(task.domain || 'General')}`}>
+                              {task.domain || 'General'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`font-label-caps text-[10px] ${task.urgency === 'Critical' ? 'text-error' : 'text-on-surface-variant'} block`}>Urgency</span>
+                          <span className="font-data-mono text-sm text-on-surface">{task.urgency || 'Normal'}</span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  {(!state?.observation?.active_tasks || state.observation.active_tasks.length === 0) && (
+                    <div className="text-on-surface-variant text-center p-8 font-body-sm italic">Queue Empty. Awaiting input.</div>
+                  )}
+                  {/* Invisible spacer to maintain layout height for absolute positioned elements */}
+                  <div className="h-48"></div> 
+                </div>
+              </motion.div>
             </div>
 
             <div className="lg:col-span-5 flex flex-col gap-lg">
-              <div className="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg">
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/30 rounded-2xl p-lg shadow-glow-cyan relative">
                 <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary-container">tune</span>
-                  Action Control Panel
+                  <span className="material-symbols-outlined text-primary">tune</span>
+                  Action Control Matrix
                 </h3>
-                <div className="grid grid-cols-2 gap-sm mb-4">
-                  <button onClick={() => handleAction('prioritize_task')} disabled={loading} className="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-primary font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
-                    <span className="material-symbols-outlined text-lg">priority_high</span>
-                    PRIORITIZE
-                  </button>
-                  <button onClick={() => handleAction('allocate_resources')} disabled={loading} className="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-secondary font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
-                    <span className="material-symbols-outlined text-lg">call_split</span>
-                    ALLOCATE
-                  </button>
-                  <button onClick={() => handleAction('veto_task')} disabled={loading} className="bg-surface-container-highest hover:bg-surface-bright border border-outline-variant/30 text-on-surface font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
-                    <span className="material-symbols-outlined text-lg">block</span>
-                    VETO
-                  </button>
-                  <button onClick={() => handleAction('step')} disabled={loading} className="bg-primary/20 hover:bg-primary/30 border border-primary/50 text-primary font-label-caps text-label-caps py-3 px-4 rounded flex flex-col items-center gap-1 transition-colors">
-                    <span className="material-symbols-outlined text-lg">step_into</span>
-                    STEP
-                  </button>
+                <div className="grid grid-cols-2 gap-sm">
+                  {[
+                    { action: 'prioritize_task', label: 'PRIORITIZE', icon: 'priority_high', color: 'primary' },
+                    { action: 'allocate_resources', label: 'ALLOCATE', icon: 'call_split', color: 'secondary' },
+                    { action: 'veto_task', label: 'VETO', icon: 'block', color: 'outline-variant' },
+                    { action: 'step', label: 'STEP', icon: 'step_into', color: 'signal-green' }
+                  ].map((btn, i) => (
+                    <motion.button 
+                      key={i}
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleAction(btn.action)} 
+                      disabled={loading} 
+                      className={`bg-space-900/60 hover:bg-space-800 border border-${btn.color}/30 text-${btn.color} font-label-caps text-xs py-4 px-4 rounded-xl flex flex-col items-center gap-2 transition-colors shadow-[inset_0_0_15px_rgba(255,255,255,0.02)]`}
+                    >
+                      <span className="material-symbols-outlined text-xl">{btn.icon}</span>
+                      {btn.label}
+                    </motion.button>
+                  ))}
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg flex-grow">
-                <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
-                  <span className="material-symbols-outlined text-tertiary-container">history</span>
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass flex-grow relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary via-secondary to-transparent opacity-50"></div>
+                <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2 pl-4">
+                  <span className="material-symbols-outlined text-tertiary">history</span>
                   Simulation Timeline
                 </h3>
-                <div className="flex flex-col gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  {history.length > 0 ? history.map((item) => (
-                    <div key={item.id} className="border-l-2 border-primary/40 pl-4 py-1 relative">
-                      <div className="absolute w-2 h-2 rounded-full bg-primary -left-[5px] top-2"></div>
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-label-caps text-label-caps text-primary uppercase">{item.action}</span>
-                        <span className={`text-xs font-bold ${item.reward >= 0 ? 'text-secondary' : 'text-error'}`}>
-                          {item.reward >= 0 ? '+' : ''}{item.reward} pts
-                        </span>
-                      </div>
-                      <p className="text-on-surface-variant text-sm mb-1 italic">"{item.explanation}"</p>
-                      <p className="text-on-surface text-xs">{item.outcome}</p>
-                    </div>
-                  )) : (
-                    <div className="text-on-surface-variant text-sm italic">No actions taken yet. Click STEP or action buttons above to begin.</div>
-                  )}
+                <div className="flex flex-col gap-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar pl-4">
+                  <AnimatePresence>
+                    {history.length > 0 ? history.map((item) => (
+                      <motion.div 
+                        key={item.id} 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="border-l border-outline-variant/30 pl-4 py-2 relative group hover:border-primary/50 transition-colors"
+                      >
+                        <div className="absolute w-2 h-2 rounded-full bg-surface-container border border-primary -left-[4px] top-3 group-hover:bg-primary group-hover:shadow-glow-cyan transition-all"></div>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-label-caps text-[10px] text-primary uppercase tracking-widest">{item.action}</span>
+                          <span className={`text-[10px] font-bold ${item.reward >= 0 ? 'text-signal-green' : 'text-error'}`}>
+                            {item.reward >= 0 ? '+' : ''}{item.reward} pts
+                          </span>
+                        </div>
+                        <p className="text-on-surface-variant text-xs mb-1 italic font-serif">"{item.explanation}"</p>
+                      </motion.div>
+                    )) : (
+                      <div className="text-on-surface-variant text-xs italic opacity-50">Timeline initialized. Awaiting sequence...</div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
 
-          <section className="bg-surface-container/60 backdrop-blur-xl border border-outline-variant/30 rounded-xl p-lg shadow-lg overflow-x-auto">
-            <h3 className="font-h2 text-h2 text-on-surface mb-md flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">bar_chart</span>
-              Agent Comparison Leaderboard
-            </h3>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-outline-variant/50">
-                  <th className="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase">Agent Model</th>
-                  <th className="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right w-48">DIS Score</th>
-                  <th className="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right">Tasks Solved</th>
-                  <th className="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase text-right">Violations</th>
-                  <th className="py-4 px-4 font-label-caps text-label-caps text-on-surface-variant uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody className="font-data-mono text-data-mono">
-                {renderLeaderboard()}
-              </tbody>
-            </table>
-          </section>
+          <motion.section variants={itemVariants} className="bg-space-900/80 backdrop-blur-3xl border border-outline-variant/20 rounded-3xl p-xl shadow-2xl overflow-hidden relative mt-8">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-space-900 to-space-900 pointer-events-none"></div>
+            
+            <div className="relative z-10 flex flex-col items-center mb-8">
+              <h3 className="font-display-lg text-3xl sm:text-4xl text-on-surface mb-2 flex items-center gap-3 drop-shadow-md">
+                <span className="material-symbols-outlined text-secondary text-3xl">account_tree</span>
+                Agent Performance Matrix
+              </h3>
+              <p className="text-on-surface-variant font-label-caps tracking-widest text-xs uppercase">Evaluating Decision Intelligence (DIS) Baseline</p>
+            </div>
+            
+            <div className="relative z-10">
+              {renderLeaderboardTowers()}
+            </div>
+          </motion.section>
 
           <div className="h-md"></div>
-        </div>
+        </motion.div>
       </main>
     </>
   );

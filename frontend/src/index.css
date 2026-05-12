@@ -4,8 +4,18 @@
 
 @layer base {
   body {
-    @apply bg-background text-on-background min-h-screen selection:bg-primary selection:text-on-primary;
+    @apply bg-space-900 text-on-background min-h-screen selection:bg-primary selection:text-space-900 overflow-x-hidden;
+    background: radial-gradient(circle at 15% 50%, rgba(11, 16, 38, 1), transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(17, 25, 54, 1), transparent 50%),
+                #050816;
+    background-size: 200% 200%;
+    animation: driftBackground 20s ease-in-out infinite alternate;
   }
+}
+
+@keyframes driftBackground {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
 }
 
 @layer utilities {
