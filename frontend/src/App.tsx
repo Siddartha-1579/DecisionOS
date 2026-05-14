@@ -835,6 +835,240 @@ const TimelineItem = ({ item }: { item: any }) => {
   );
 };
 
+const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+  const [selectedPreset, setSelectedPreset] = useState<string>('gpt');
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationComplete, setSimulationComplete] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSimulationComplete(false);
+      setIsSimulating(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const presets: Record<string, any> = {
+    'gpt': { name: 'GPT-Style Model', endpoint: 'https://api.mock-inference.io/v1/gpt-adapter', compatibility: 'Adapter Ready', behavior: 'Balanced reasoning with moderate resource efficiency.' },
+    'claude': { name: 'Claude-Style Model', endpoint: 'https://api.mock-inference.io/v1/claude-adapter', compatibility: 'Adapter Ready', behavior: 'Cautious risk profiling, higher escalation rates under uncertainty.' },
+    'rl': { name: 'RL Policy Framework', endpoint: 'local://weights/ppo_v4.pt', compatibility: 'Experimental', behavior: 'Aggressive reward maximization, varying stability.' },
+    'custom': { name: 'Custom Inference', endpoint: 'http://localhost:5000/inference', compatibility: 'Unsupported', behavior: 'Unknown behavior profile. Requires custom BaseAdapter implementation.' }
+  };
+
+  const currentPreset = presets[selectedPreset];
+
+  const handleSimulate = () => {
+    setIsSimulating(true);
+    setSimulationComplete(false);
+    setTimeout(() => {
+      setIsSimulating(false);
+      setSimulationComplete(true);
+    }, 2500);
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[200] bg-space-900/95 backdrop-blur-3xl flex items-center justify-center p-4 overflow-y-auto"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-surface-container/50 border border-outline-variant/30 rounded-3xl w-full max-w-6xl shadow-2xl relative flex flex-col my-8"
+      >
+        <button onClick={onClose} className="absolute top-6 right-6 text-on-surface-variant hover:text-primary transition-colors">
+          <span className="material-symbols-outlined text-3xl">close</span>
+        </button>
+
+        <div className="p-8 border-b border-outline-variant/20">
+          <h2 className="text-3xl font-display-lg text-on-surface mb-3 flex items-center gap-3">
+            <span className="material-symbols-outlined text-secondary text-4xl">extension</span>
+            Adapter Integration Preview
+          </h2>
+          <p className="text-primary font-body-lg mb-2">
+            DecisionOS is designed as a model-agnostic benchmark framework for evaluating operational intelligence across heterogeneous AI systems.
+          </p>
+          <div className="inline-flex items-center gap-2 bg-secondary/10 border border-secondary/30 px-4 py-2 rounded-lg text-secondary text-xs">
+            <span className="material-symbols-outlined text-[16px]">info</span>
+            This module demonstrates how external AI systems can integrate into the DecisionOS benchmark architecture through standardized adapters. No real external inference occurs in this preview.
+          </div>
+        </div>
+
+        <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Left Column */}
+          <div className="space-y-8">
+            <div className="bg-space-900/60 p-6 rounded-2xl border border-outline-variant/30">
+              <h3 className="text-lg text-on-surface mb-4 font-display-md flex items-center gap-2">
+                <span className="material-symbols-outlined text-tertiary">settings_input_component</span>
+                Mock Configuration
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-label-caps uppercase tracking-widest text-on-surface-variant mb-2">Select Agent Profile</label>
+                  <select 
+                    value={selectedPreset}
+                    onChange={(e) => setSelectedPreset(e.target.value)}
+                    className="w-full bg-space-800 border border-outline-variant/30 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:border-primary transition-colors appearance-none"
+                  >
+                    {Object.entries(presets).map(([k, v]) => (
+                      <option key={k} value={k}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-label-caps uppercase tracking-widest text-on-surface-variant mb-2">Mock API Endpoint</label>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={currentPreset.endpoint}
+                    className="w-full bg-space-800/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-on-surface-variant font-data-mono text-sm opacity-70"
+                  />
+                </div>
+              </div>
+
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSimulate}
+                disabled={isSimulating}
+                className="w-full mt-6 bg-primary/20 border border-primary/50 text-primary py-3 rounded-xl shadow-glow-cyan flex items-center justify-center gap-2 font-label-caps transition-colors hover:bg-primary/30"
+              >
+                {isSimulating ? (
+                  <><span className="material-symbols-outlined animate-spin">sync</span> INITIATING ADAPTER...</>
+                ) : (
+                  <><span className="material-symbols-outlined">bolt</span> SIMULATE REGISTRATION FLOW</>
+                )}
+              </motion.button>
+            </div>
+
+            <div className="bg-space-900/60 p-6 rounded-2xl border border-outline-variant/30">
+              <h3 className="text-lg text-on-surface mb-4 font-display-md flex items-center gap-2">
+                <span className="material-symbols-outlined text-signal-green">verified_user</span>
+                Required Adapter Methods
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {['initialize()', 'decide_action()', 'reset()', 'get_agent_metadata()'].map(m => (
+                  <div key={m} className="bg-surface-container/50 border border-outline-variant/20 px-3 py-2 rounded-lg text-signal-green font-data-mono text-xs text-center shadow-[0_0_10px_rgba(52,211,153,0.1)]">
+                    {m}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-label-caps uppercase tracking-widest text-on-surface-variant mb-3 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">radar</span>
+                Future Integration Targets
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {['OpenAI-compatible APIs', 'Anthropic-compatible APIs', 'RL policy environments', 'Local inference models'].map(t => (
+                  <span key={t} className="px-3 py-1 bg-surface-container border border-outline-variant/30 rounded-full text-xs text-on-surface-variant">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-8">
+            {/* Architecture Diagram */}
+            <div className="bg-space-900/60 p-6 rounded-2xl border border-outline-variant/30 relative">
+              <h3 className="text-lg text-on-surface mb-6 font-display-md flex items-center gap-2">
+                <span className="material-symbols-outlined text-secondary">account_tree</span>
+                Evaluation Architecture
+              </h3>
+              
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-full max-w-xs py-3 rounded-xl border text-center font-label-caps tracking-widest text-sm transition-all duration-500 ${isSimulating || simulationComplete ? 'bg-primary/20 border-primary shadow-glow-cyan text-primary' : 'bg-surface-container border-outline-variant text-on-surface-variant'}`}>
+                  External Agent
+                </div>
+                <span className={`material-symbols-outlined ${isSimulating || simulationComplete ? 'text-primary animate-bounce' : 'text-outline-variant'}`}>arrow_downward</span>
+                
+                <div className={`w-full max-w-xs py-3 rounded-xl border text-center font-label-caps tracking-widest text-sm transition-all duration-500 ${simulationComplete ? 'bg-secondary/20 border-secondary shadow-glow-violet text-secondary' : 'bg-surface-container border-outline-variant text-on-surface-variant'}`}>
+                  Adapter Layer
+                </div>
+                <span className={`material-symbols-outlined ${simulationComplete ? 'text-secondary animate-bounce' : 'text-outline-variant'}`}>arrow_downward</span>
+                
+                <div className="w-full max-w-xs py-3 rounded-xl border border-outline-variant bg-surface-container text-center font-label-caps tracking-widest text-sm text-on-surface">
+                  Benchmark Engine
+                </div>
+                <span className="material-symbols-outlined text-outline-variant">arrow_downward</span>
+                
+                <div className="flex w-full max-w-xs gap-2">
+                  <div className="flex-1 py-3 rounded-xl border border-signal-green/30 bg-signal-green/10 text-center font-label-caps tracking-widest text-xs text-signal-green shadow-[0_0_10px_rgba(52,211,153,0.1)]">
+                    DIS Eval
+                  </div>
+                  <div className="flex-1 py-3 rounded-xl border border-error/30 bg-error/10 text-center font-label-caps tracking-widest text-xs text-error shadow-[0_0_10px_rgba(248,113,113,0.1)]">
+                    Analysis
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {simulationComplete ? (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-primary/5 border border-primary/30 p-6 rounded-2xl shadow-glow-cyan relative"
+                >
+                  <h3 className="text-lg text-primary mb-4 font-display-md flex items-center gap-2">
+                    <span className="material-symbols-outlined">done_all</span>
+                    Adapter Ready
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-primary/20">
+                      <span className="text-xs font-label-caps uppercase text-on-surface-variant">Compatibility Status</span>
+                      <span className={`px-2 py-1 rounded text-[10px] uppercase tracking-widest font-bold ${
+                        currentPreset.compatibility === 'Adapter Ready' ? 'bg-signal-green/20 text-signal-green border border-signal-green/30' : 
+                        currentPreset.compatibility === 'Experimental' ? 'bg-tertiary-container/20 text-tertiary-container border border-tertiary-container/30' : 
+                        'bg-error/20 text-error border border-error/30'
+                      }`}>
+                        {currentPreset.compatibility}
+                      </span>
+                    </div>
+
+                    <div className="pb-3 border-b border-primary/20">
+                      <span className="text-xs font-label-caps uppercase text-on-surface-variant block mb-2">Supported Benchmark Capabilities</span>
+                      <ul className="grid grid-cols-2 gap-2 text-xs text-on-surface">
+                        <li className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-signal-green">check</span> Sequential eval</li>
+                        <li className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-signal-green">check</span> Risk handling</li>
+                        <li className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-signal-green">check</span> Resource allocation</li>
+                        <li className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-signal-green">check</span> Stability analysis</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <span className="text-xs font-label-caps uppercase text-on-surface-variant block mb-2">Expected Profile</span>
+                      <p className="text-sm text-on-surface-variant italic border-l-2 border-primary/50 pl-3">"{currentPreset.behavior}"</p>
+                    </div>
+
+                    <div className="mt-4 text-center text-[10px] text-primary/70 uppercase tracking-widest font-label-caps pt-4">
+                      Benchmark evaluation available after full adapter integration.
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <div className="h-48 flex flex-col items-center justify-center border border-dashed border-outline-variant/30 rounded-2xl bg-space-900/30 text-on-surface-variant">
+                  <span className="material-symbols-outlined text-4xl mb-2 opacity-50">query_stats</span>
+                  <span className="text-xs font-label-caps uppercase tracking-widest">Awaiting Simulation</span>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -859,6 +1093,7 @@ export default function App() {
   const [crisisHistory, setCrisisHistory] = useState<any[]>([]);
 
   const [adapters, setAdapters] = useState<any[]>([]);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const fetchState = async () => {
     try {
@@ -1424,6 +1659,15 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-6">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsImportModalOpen(true)}
+            className="hidden sm:flex px-4 py-2 rounded-full border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:border-outline-variant transition-colors items-center gap-2 shadow-glass bg-space-800/50"
+          >
+            <span className="material-symbols-outlined text-sm">extension</span>
+            <span className="font-label-caps text-xs">ADAPTER PREVIEW</span>
+          </motion.button>
           <motion.button 
             whileHover={appMode === 'ai' && !isBenchmarking ? { scale: 1.05, boxShadow: "0 0 15px rgba(56,245,255,0.4)" } : {}}
             whileTap={appMode === 'ai' && !isBenchmarking ? { scale: 0.95 } : {}}
@@ -1435,6 +1679,10 @@ export default function App() {
           </motion.button>
         </div>
       </motion.header>
+
+      <AnimatePresence>
+        <AdapterIntegrationModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
+      </AnimatePresence>
 
       <nav className="hidden lg:flex flex-col h-screen fixed left-0 top-0 z-40 w-64 bg-space-800/60 backdrop-blur-2xl border-r border-outline-variant/20 pt-20 pb-6 px-4">
         <div className="mb-8 px-4">
