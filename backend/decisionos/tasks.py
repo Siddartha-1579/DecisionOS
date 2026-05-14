@@ -1,201 +1,155 @@
 """
 DecisionOS Task Registry
-Defines the 3 benchmark tasks across 3 domains.
+Defines the 3 benchmark tasks across 5 domains.
 Each task includes complete metadata and the ground-truth best action.
 """
 from decisionos.schemas import TaskSchema
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Task 1 — TASK PRIORITIZATION (Easy)
-# Scenario: 3 concurrent work items land in the queue simultaneously.
-# The agent must identify which should be handled first.
-# Ground truth: T1 (critical urgency, importance=9) must go first.
-# ─────────────────────────────────────────────────────────────────────────────
-
-TASK_PRIORITIZATION = TaskSchema(
-    task_id="T1",
-    domain_type="prioritization",
-    title="Production Database Outage vs. Feature Requests",
-    urgency="critical",
-    importance=9,
-    risk_level=0.85,
-    budget_required=500.0,
-    time_required=2.0,
-    workforce_required=3,
-    metadata={
-        "competing_tasks": [
-            {
-                "task_id": "T1A",
-                "title": "New feature UI polish",
-                "urgency": "low",
-                "importance": 4,
-                "deadline_hours": 72,
-            },
-            {
-                "task_id": "T1B",
-                "title": "Production DB experiencing partial outage (30% queries failing)",
-                "urgency": "critical",
-                "importance": 9,
-                "deadline_hours": 0.5,
-            },
-            {
-                "task_id": "T1C",
-                "title": "Quarterly report formatting",
-                "urgency": "medium",
-                "importance": 5,
-                "deadline_hours": 24,
-            },
-        ],
-        "context": (
-            "It is 09:15 on a Monday. Revenue-generating production DB is degraded. "
-            "Customer-facing services are partially down. The UI feature and report "
-            "can wait. Who should the on-call team focus on immediately?"
-        ),
-    },
-    ground_truth_best_action="prioritize_task",
-    explanation=(
-        "T1B (production DB outage) must be prioritized first. Critical urgency + "
-        "highest importance + 30-minute deadline overwhelm the other tasks. "
-        "Delaying a critical outage incurs cascading customer and revenue damage."
-    ),
-)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Task 2 — RESOURCE ALLOCATION (Medium)
-# Scenario: 3 projects compete for a fixed $20,000 budget, 40 work-hours,
-# and 5 engineers. The agent must distribute optimally.
-# Ground truth: allocate_resources with the highest-ROI distribution.
-# ─────────────────────────────────────────────────────────────────────────────
-
-TASK_RESOURCE_ALLOCATION = TaskSchema(
-    task_id="T2",
-    domain_type="resource_allocation",
-    title="Sprint Budget Allocation Across 3 Competing Projects",
-    urgency="high",
-    importance=8,
-    risk_level=0.40,
-    budget_required=20000.0,
-    time_required=40.0,
-    workforce_required=5,
-    metadata={
-        "total_budget": 20000.0,
-        "total_hours": 40.0,
-        "total_engineers": 5,
-        "projects": [
-            {
-                "project_id": "P1",
-                "name": "Security patch rollout",
-                "min_budget": 8000,
-                "max_budget": 12000,
-                "min_hours": 16,
-                "min_engineers": 2,
-                "roi_score": 9,
-                "risk_if_skipped": "critical",
-            },
-            {
-                "project_id": "P2",
-                "name": "Customer-facing API upgrade",
-                "min_budget": 5000,
-                "max_budget": 8000,
-                "min_hours": 16,
-                "min_engineers": 2,
-                "roi_score": 7,
-                "risk_if_skipped": "medium",
-            },
-            {
-                "project_id": "P3",
-                "name": "Internal analytics dashboard",
-                "min_budget": 2000,
-                "max_budget": 4000,
-                "min_hours": 8,
-                "min_engineers": 1,
-                "roi_score": 4,
-                "risk_if_skipped": "low",
-            },
-        ],
-        "optimal_allocation": {
-            "P1": {"budget": 10000, "hours": 20, "engineers": 2},
-            "P2": {"budget": 7000, "hours": 14, "engineers": 2},
-            "P3": {"budget": 3000, "hours": 6, "engineers": 1},
+def create_prioritization_task(task_id, domain, title, alternatives, context, expl):
+    return TaskSchema(
+        task_id=task_id,
+        domain_type=domain,
+        title=title,
+        urgency="critical",
+        importance=9,
+        risk_level=0.85,
+        budget_required=500.0,
+        time_required=2.0,
+        workforce_required=3,
+        metadata={
+            "competing_tasks": alternatives,
+            "context": context,
         },
-        "context": (
-            "A two-week sprint begins tomorrow. The PM must finalize resource "
-            "allocation. Security patch is non-negotiable; skipping it risks a "
-            "breach. The API upgrade drives Q3 revenue. The dashboard is nice-to-have."
-        ),
-    },
-    ground_truth_best_action="allocate_resources",
-    explanation=(
-        "Optimal allocation: $10k / 20h / 2 engineers to Security (P1), "
-        "$7k / 14h / 2 engineers to API (P2), $3k / 6h / 1 engineer to Dashboard (P3). "
-        "This satisfies all minimums, respects ROI ordering, and leaves no waste."
-    ),
-)
+        ground_truth_best_action="prioritize_task",
+        explanation=expl,
+    )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Task 3 — RISK & CRISIS HANDLING (Hard)
-# Scenario: A payment processor flags a suspicious transaction cluster.
-# The agent must decide: approve, reject, escalate, or flag_risk.
-# Ground truth: escalate_issue (not simply reject — needs human fraud review).
-# ─────────────────────────────────────────────────────────────────────────────
-
-TASK_RISK_CRISIS = TaskSchema(
-    task_id="T3",
-    domain_type="risk_crisis",
-    title="Suspicious Payment Cluster — Potential Fraud Escalation",
-    urgency="critical",
-    importance=10,
-    risk_level=0.92,
-    budget_required=0.0,
-    time_required=0.5,
-    workforce_required=1,
-    metadata={
-        "alert": {
-            "alert_id": "FRD-2024-0847",
-            "type": "fraud_cluster",
-            "transactions_flagged": 47,
-            "total_value_usd": 184320,
-            "time_window_minutes": 12,
-            "geographic_anomaly": True,
-            "velocity_breach": True,
-            "ml_fraud_score": 0.94,
-            "affected_accounts": 3,
-            "account_age_days": [1203, 87, 2],
+def create_allocation_task(task_id, domain, title, projects, optimal, context, expl):
+    return TaskSchema(
+        task_id=task_id,
+        domain_type=domain,
+        title=title,
+        urgency="high",
+        importance=8,
+        risk_level=0.40,
+        budget_required=20000.0,
+        time_required=40.0,
+        workforce_required=5,
+        metadata={
+            "total_budget": 20000.0,
+            "total_hours": 40.0,
+            "total_engineers": 5,
+            "projects": projects,
+            "optimal_allocation": optimal,
+            "context": context,
         },
-        "context": (
-            "ML model flags a cluster of 47 transactions totalling $184k in 12 minutes "
-            "across 3 accounts. One account is 2 days old (high-risk indicator). "
-            "Geographic anomaly detected (transactions from 4 countries simultaneously). "
-            "ML fraud score: 0.94. Auto-reject would block $184k immediately but could "
-            "harm legitimate customers. Ignoring it risks $184k + regulatory exposure. "
-            "The correct action is escalation to the fraud review team for human oversight."
-        ),
-        "available_actions_reasoning": {
-            "approve_decision": "WRONG — ML score 0.94 makes approval reckless.",
-            "reject_decision": "PARTIALLY CORRECT — stops loss but may harm legit customers; "
-                               "misses audit trail and regulatory requirement for human review.",
-            "escalate_issue": "CORRECT — triggers fraud review team, pauses transactions, "
-                               "creates compliance record, preserves customer relationships.",
-            "flag_risk": "INSUFFICIENT — only marks for later review; doesn't pause transactions.",
+        ground_truth_best_action="allocate_resources",
+        explanation=expl,
+    )
+
+def create_crisis_task(task_id, domain, title, alert_data, context, expl):
+    return TaskSchema(
+        task_id=task_id,
+        domain_type=domain,
+        title=title,
+        urgency="critical",
+        importance=10,
+        risk_level=0.92,
+        budget_required=0.0,
+        time_required=0.5,
+        workforce_required=1,
+        metadata={
+            "alert": alert_data,
+            "context": context,
+            "available_actions_reasoning": {
+                "approve_decision": "WRONG \u2014 Reckless approval.",
+                "reject_decision": "PARTIALLY CORRECT \u2014 Stops immediate loss but misses audit/human review.",
+                "escalate_issue": "CORRECT \u2014 Triggers human review, pauses system, creates audit trail.",
+                "flag_risk": "INSUFFICIENT \u2014 Only marks for later review.",
+            },
         },
-    },
-    ground_truth_best_action="escalate_issue",
-    explanation=(
-        "escalate_issue is correct: ML fraud score 0.94 + velocity breach + geographic anomaly "
-        "exceed auto-reject threshold but the $184k value and multi-account nature require "
-        "human fraud review (regulatory compliance). Escalation pauses transactions AND "
-        "creates a compliance audit trail, which reject_decision alone does not provide."
-    ),
-)
+        ground_truth_best_action="escalate_issue",
+        explanation=expl,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Registry — ordered list that defines episode progression
+# DOMAINS
 # ─────────────────────────────────────────────────────────────────────────────
 
-TASK_REGISTRY: list[TaskSchema] = [
-    TASK_PRIORITIZATION,
-    TASK_RESOURCE_ALLOCATION,
-    TASK_RISK_CRISIS,
-]
+# 1. OPERATIONS
+OP_T1 = create_prioritization_task("OP-T1", "Operations", "Production DB Outage vs Feature Requests", 
+    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "DB Outage"}],
+    "Revenue-generating DB is degraded. Customer-facing services down.",
+    "DB outage must be prioritized to avoid cascading revenue damage.")
+OP_T2 = create_allocation_task("OP-T2", "Operations", "Sprint Budget Allocation",
+    [{"project_id": "P1", "name": "Security patch"}], {},
+    "Sprint allocation. Security patch is critical.",
+    "Optimal allocation handles security first.")
+OP_T3 = create_crisis_task("OP-T3", "Operations", "Payment Gateway Failure",
+    {"type": "gateway_outage"}, "Payment gateway is throwing 500s rapidly.",
+    "escalate_issue is correct to trigger emergency engineering review.")
 
-TASK_BY_ID: dict[str, TaskSchema] = {t.task_id: t for t in TASK_REGISTRY}
+# 2. FINANCE
+FIN_T1 = create_prioritization_task("FIN-T1", "Finance", "Fraud Alerts vs System Updates",
+    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "High-Value Fraud"}],
+    "Massive fraud detected. Needs immediate halt.",
+    "Fraud must be prioritized.")
+FIN_T2 = create_allocation_task("FIN-T2", "Finance", "Q3 Budget Deployment",
+    [{"project_id": "P1", "name": "Compliance Audit"}], {},
+    "Deploying funds for Q3. Compliance is non-negotiable.",
+    "Optimal allocation handles compliance first.")
+FIN_T3 = create_crisis_task("FIN-T3", "Finance", "Suspicious Payment Cluster",
+    {"type": "fraud_cluster", "ml_fraud_score": 0.94}, "ML model flags a cluster of 47 transactions.",
+    "escalate_issue is correct to trigger fraud review team.")
+
+# 3. HEALTHCARE
+HC_T1 = create_prioritization_task("HC-T1", "Healthcare", "Emergency Triage vs Routine Checkup",
+    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Cardiac Arrest"}],
+    "Patient presenting with cardiac arrest vs routine physicals.",
+    "Cardiac arrest must be prioritized.")
+HC_T2 = create_allocation_task("HC-T2", "Healthcare", "ICU Bed Distribution",
+    [{"project_id": "P1", "name": "Critical Care Unit"}], {},
+    "Allocating limited ICU beds for incoming trauma patients.",
+    "Optimal allocation handles trauma first.")
+HC_T3 = create_crisis_task("HC-T3", "Healthcare", "Oxygen Supply Shortage",
+    {"type": "supply_shortage"}, "Main oxygen tank pressure dropping unexpectedly.",
+    "escalate_issue is correct to trigger emergency hospital protocol.")
+
+# 4. CYBERSECURITY
+CYB_T1 = create_prioritization_task("CYB-T1", "Cybersecurity", "DDoS Mitigation vs Log Review",
+    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Active DDoS"}],
+    "Active DDoS attack flooding main ingress.",
+    "DDoS must be prioritized.")
+CYB_T2 = create_allocation_task("CYB-T2", "Cybersecurity", "Incident Response Team Dispatch",
+    [{"project_id": "P1", "name": "Containment"}], {},
+    "Dispatching engineers to contain an ongoing breach.",
+    "Optimal allocation handles containment first.")
+CYB_T3 = create_crisis_task("CYB-T3", "Cybersecurity", "Active Ransomware Encryption Detected",
+    {"type": "ransomware"}, "File encryption detected on domain controllers.",
+    "escalate_issue is correct to trigger immediate network quarantine and SOC escalation.")
+
+# 5. LOGISTICS
+LOG_T1 = create_prioritization_task("LOG-T1", "Logistics", "Perishable Goods vs Standard Cargo",
+    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Perishables Delay"}],
+    "Refrigeration failure on a perishable goods container.",
+    "Perishable goods must be prioritized.")
+LOG_T2 = create_allocation_task("LOG-T2", "Logistics", "Fleet Routing & Driver Shifts",
+    [{"project_id": "P1", "name": "Express Delivery"}], {},
+    "Allocating available drivers to critical routes.",
+    "Optimal allocation handles express first.")
+LOG_T3 = create_crisis_task("LOG-T3", "Logistics", "Port Strike Causing Massive Delay",
+    {"type": "port_strike"}, "Unexpected worker strike at main port.",
+    "escalate_issue is correct to trigger rerouting logistics chain.")
+
+DOMAINS = {
+    "Operations": [OP_T1, OP_T2, OP_T3],
+    "Finance": [FIN_T1, FIN_T2, FIN_T3],
+    "Healthcare": [HC_T1, HC_T2, HC_T3],
+    "Cybersecurity": [CYB_T1, CYB_T2, CYB_T3],
+    "Logistics": [LOG_T1, LOG_T2, LOG_T3],
+}
+
+TASK_REGISTRY = DOMAINS["Operations"]
+
+def get_tasks_for_domain(domain: str) -> list[TaskSchema]:
+    return DOMAINS.get(domain, DOMAINS["Operations"])

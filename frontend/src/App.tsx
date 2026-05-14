@@ -633,41 +633,57 @@ const ProjectionItem = ({ proj, getImpactColor, getImpactIcon }: any) => {
   );
 };
 
-const AgentAnalysisPanel = ({ leaderboard }: { leaderboard: any[] }) => {
+const AgentAnalysisPanel = ({ leaderboard, adapters }: { leaderboard: any[], adapters: any[] }) => {
   if (!leaderboard || leaderboard.length === 0) return null;
 
   const getAnalysis = (agentName: string) => {
+    const adapter = adapters?.find(a => a.id === agentName);
+    if (adapter) {
+      return {
+        strengths: [`Focus: ${adapter.optimization_focus}`, `Stability: ${adapter.stability_rating}`],
+        weaknesses: [`Risk Profile: ${adapter.risk_profile}`],
+        patterns: [`Reasoning: ${adapter.reasoning_style}`, `Compatibility: ${adapter.benchmark_compatibility}`],
+        behavior: adapter.description,
+        type: adapter.type
+      };
+    }
+    
+    // Fallbacks
     switch (agentName) {
       case 'random':
         return {
           strengths: ['None (Baseline)'],
           weaknesses: ['Unpredictable', 'High resource burn', 'Ignores state constraints'],
           patterns: ['Frequently triggers critical risk escalation', 'Fails to prioritize tasks'],
-          behavior: 'Stochastic execution without heuristic guidance.'
+          behavior: 'Stochastic execution without heuristic guidance.',
+          type: 'Native'
         };
       case 'rule_based':
         return {
           strengths: ['Consistent under structured tasks', 'Fast execution'],
           weaknesses: ['Struggles under dynamic uncertainty', 'Rigid prioritization'],
           patterns: ['Over-allocates resources to normal tasks', 'Fails to adapt to sudden risk spikes'],
-          behavior: 'Strict deterministic if/else decision trees.'
+          behavior: 'Strict deterministic if/else decision trees.',
+          type: 'Native'
         };
       case 'mock_llm':
         return {
           strengths: ['Adaptive reasoning', 'Context-aware prioritization', 'Excellent risk mitigation'],
           weaknesses: ['Occasionally resource inefficient'],
           patterns: ['Prefers safe vetoes over risky rewards', 'Maintains steady throughput'],
-          behavior: 'Generative contextual analysis with multi-step foresight.'
+          behavior: 'Generative contextual analysis with multi-step foresight.',
+          type: 'Native'
         };
       case 'human':
         return {
           strengths: ['Intuitive risk handling', 'Strategic burst allocation'],
           weaknesses: ['Slower execution', 'Susceptible to fatigue'],
           patterns: ['Inconsistent urgency response', 'Excellent at mitigating immediate threats'],
-          behavior: 'Manual, context-driven episodic reasoning.'
+          behavior: 'Manual, context-driven episodic reasoning.',
+          type: 'Human'
         };
       default:
-        return { strengths: [], weaknesses: [], patterns: [], behavior: 'Unknown behavior model.' };
+        return { strengths: [], weaknesses: [], patterns: [], behavior: 'Unknown behavior model.', type: 'Unknown' };
     }
   };
 
@@ -698,6 +714,9 @@ const AgentAnalysisPanel = ({ leaderboard }: { leaderboard: any[] }) => {
                 </span>
                 {isWinner && <span className="material-symbols-outlined text-primary text-sm animate-pulse">workspace_premium</span>}
               </div>
+              <div className="mb-4 inline-block px-2 py-0.5 rounded border border-outline-variant/30 text-[9px] uppercase tracking-widest text-on-surface-variant bg-surface-container">
+                {analysis.type}
+              </div>
               
               <div className="space-y-3">
                 <div>
@@ -713,8 +732,9 @@ const AgentAnalysisPanel = ({ leaderboard }: { leaderboard: any[] }) => {
                   </ul>
                 </div>
                 <div className="pt-2 border-t border-outline-variant/20">
-                  <span className="text-[9px] text-secondary uppercase tracking-widest block mb-1">Failure Patterns</span>
-                  <p className="text-xs text-on-surface-variant leading-relaxed">{analysis.patterns.join('. ')}</p>
+                  <span className="text-[9px] text-secondary uppercase tracking-widest block mb-1">Behavior & Patterns</span>
+                  <p className="text-xs text-on-surface-variant leading-relaxed mb-2">{analysis.patterns.join('. ')}</p>
+                  <p className="text-xs text-on-surface-variant leading-relaxed italic border-l border-outline-variant/30 pl-2">"{analysis.behavior}"</p>
                 </div>
               </div>
             </div>
@@ -831,11 +851,14 @@ export default function App() {
   const [currentBenchmarkAgent, setCurrentBenchmarkAgent] = useState<string | null>(null);
   const [benchmarkProgress, setBenchmarkProgress] = useState(0);
   const [benchmarkTime, setBenchmarkTime] = useState(0);
+  const [benchmarkSeed, setBenchmarkSeed] = useState<number | null>(null);
 
   const [dynamicRisk, setDynamicRisk] = useState(0);
   const [riskMomentum, setRiskMomentum] = useState(1.0);
   const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0);
   const [crisisHistory, setCrisisHistory] = useState<any[]>([]);
+
+  const [adapters, setAdapters] = useState<any[]>([]);
 
   const fetchState = async () => {
     try {
@@ -843,6 +866,14 @@ export default function App() {
       setError(null);
       const data = await api.getState();
       setState(data);
+      
+      try {
+        const adaptersData = await api.getAdapters();
+        setAdapters(adaptersData.adapters || []);
+      } catch (err) {
+        console.error("Failed to fetch adapters", err);
+      }
+      
       setFallbackMode(false);
     } catch (err: any) {
       console.error(err);
@@ -1009,7 +1040,10 @@ export default function App() {
       setBenchmarkProgress(0);
       setBenchmarkTime(0);
       
-      const agentsToTest = ['random', 'rule_based', 'mock_llm'];
+      const seed = Math.floor(Math.random() * 10000);
+      setBenchmarkSeed(seed);
+      
+      const agentsToTest = adapters.length > 0 ? adapters.map(a => a.id) : ['random', 'rule_based', 'mock_llm'];
       const results = [];
       
       const timerInterval = setInterval(() => {
@@ -1096,12 +1130,20 @@ export default function App() {
     const reportData = {
       timestamp: new Date().toISOString(),
       environment_configuration: {
-        budget_start: 5000000,
-        workforce_start: 2000,
-        tasks_pool: 1000
+        budget_start: 25000,
+        time_start: 80,
+        workforce_start: 8
       },
-      benchmark_integrity: "All agents evaluated under identical environment conditions.",
-      rankings: finalRankings
+      benchmark_seed: benchmarkSeed || 'N/A',
+      benchmark_integrity: "All agents evaluated under identical deterministic environment conditions.",
+      rankings: finalRankings.map(r => {
+        const adapter = adapters.find(a => a.id === r.agent_name);
+        return {
+          ...r,
+          adapter_type: adapter?.type || 'Native',
+          metadata: adapter || {}
+        };
+      })
     };
     
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
@@ -1289,8 +1331,8 @@ export default function App() {
             className="fixed inset-0 z-[100] bg-space-900/90 backdrop-blur-xl flex flex-col items-center justify-center"
           >
             <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+              animate={{ rotate: 360 } as any}
+              transition={{ repeat: Infinity, duration: 4, ease: "linear" as const }}
               className="relative w-48 h-48 flex items-center justify-center mb-8"
             >
               <div className="absolute inset-0 rounded-full border-t-4 border-secondary shadow-glow-violet opacity-80"></div>
@@ -1314,11 +1356,15 @@ export default function App() {
             <div className="flex gap-16 font-data-mono text-sm text-on-surface-variant">
               <span>Progress: {Math.round(benchmarkProgress)}%</span>
               <span>Time Elapsed: {benchmarkTime}s</span>
+              <span>Seed: {benchmarkSeed}</span>
             </div>
             
-            <div className="mt-12 text-xs text-on-surface-variant italic opacity-60 flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">verified_user</span>
-              All agents evaluated under identical environment conditions.
+            <div className="mt-12 text-xs text-on-surface-variant italic opacity-60 flex flex-col items-center gap-2">
+              <span className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">verified_user</span>
+                All benchmark agents operate under deterministic evaluation conditions.
+              </span>
+              <span>Model-Agnostic Benchmarking Layer Active</span>
             </div>
           </motion.div>
         )}
@@ -1333,8 +1379,8 @@ export default function App() {
             className="fixed inset-0 z-[100] bg-space-900/80 backdrop-blur-md flex items-center justify-center"
           >
             <motion.div 
-              animate={{ rotate: 360 }}
-              transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
+              animate={{ rotate: 360 } as any}
+              transition={{ repeat: Infinity, duration: 8, ease: "linear" as const }}
               className="relative w-32 h-32 flex items-center justify-center"
             >
               <div className="absolute inset-0 rounded-full border-t-2 border-primary shadow-glow-cyan opacity-70"></div>
@@ -1409,13 +1455,13 @@ export default function App() {
       <main className="lg:ml-64 pt-20 min-h-screen flex flex-col relative z-10 overflow-hidden">
         {/* Animated Background Orbs */}
         <motion.div 
-          animate={{ x: [0, 50, 0], y: [0, 30, 0] }}
-          transition={{ repeat: Infinity, duration: 15, ease: "easeInOut" }}
+          animate={{ x: [0, 50, 0], y: [0, 30, 0] } as any}
+          transition={{ repeat: Infinity, duration: 15, ease: "easeInOut" as const }}
           className="absolute top-10 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"
         />
         <motion.div 
-          animate={{ x: [0, -40, 0], y: [0, -50, 0] }}
-          transition={{ repeat: Infinity, duration: 20, ease: "easeInOut" }}
+          animate={{ x: [0, -40, 0], y: [0, -50, 0] } as any}
+          transition={{ repeat: Infinity, duration: 20, ease: "easeInOut" as const }}
           className="absolute bottom-20 right-1/4 w-[500px] h-[500px] bg-secondary/10 blur-[100px] rounded-full pointer-events-none"
         />
 
@@ -1659,7 +1705,11 @@ export default function App() {
                   <span className="material-symbols-outlined text-secondary text-3xl">account_tree</span>
                   Agent Performance Matrix
                 </h3>
-                <p className="text-on-surface-variant font-label-caps tracking-widest text-xs uppercase">Evaluating Decision Intelligence (DIS) Baseline</p>
+                <p className="text-on-surface-variant font-label-caps tracking-widest text-xs uppercase flex items-center gap-2">
+                  <span className="bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/30">Model-Agnostic Benchmark</span>
+                  Evaluating Decision Intelligence (DIS) Baseline
+                </p>
+                {benchmarkSeed && <p className="text-secondary font-data-mono text-xs mt-1">Eval Seed: {benchmarkSeed}</p>}
               </div>
               <motion.button 
                 whileHover={{ scale: 1.05 }}
@@ -1672,10 +1722,37 @@ export default function App() {
               </motion.button>
             </div>
             
+            <div className="mb-12 bg-space-900/60 border border-outline-variant/30 rounded-2xl p-6 shadow-glass relative">
+              <h4 className="text-xl text-on-surface flex items-center gap-2 font-display-md mb-6">
+                <span className="material-symbols-outlined text-tertiary">hub</span>
+                Adapter Architecture
+              </h4>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-sm font-label-caps tracking-widest text-on-surface-variant">
+                <div className="bg-surface-container border border-outline-variant px-4 py-3 rounded-lg text-center w-full sm:w-auto shadow-glass">
+                  External Agent
+                </div>
+                <span className="material-symbols-outlined rotate-90 sm:rotate-0 text-primary animate-pulse">arrow_forward</span>
+                <div className="bg-primary/20 border border-primary/40 text-primary px-4 py-3 rounded-lg text-center w-full sm:w-auto shadow-glow-cyan">
+                  Adapter Layer
+                </div>
+                <span className="material-symbols-outlined rotate-90 sm:rotate-0 text-secondary animate-pulse">arrow_forward</span>
+                <div className="bg-secondary/20 border border-secondary/40 text-secondary px-4 py-3 rounded-lg text-center w-full sm:w-auto shadow-glow-violet">
+                  DecisionOS Engine
+                </div>
+                <span className="material-symbols-outlined rotate-90 sm:rotate-0 text-signal-green animate-pulse">arrow_forward</span>
+                <div className="bg-signal-green/20 border border-signal-green/40 text-signal-green px-4 py-3 rounded-lg text-center w-full sm:w-auto shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                  DIS Evaluation
+                </div>
+              </div>
+              <div className="text-center mt-6 text-xs text-on-surface-variant italic max-w-2xl mx-auto">
+                "All benchmark agents operate under deterministic evaluation conditions. Standardized Evaluation Interface enables model-agnostic operational benchmarking."
+              </div>
+            </div>
+
             <div className="relative z-10">
               {renderLeaderboardTowers()}
               
-              <AgentAnalysisPanel leaderboard={leaderboard.length > 0 ? leaderboard : getMockLeaderboard()} />
+              <AgentAnalysisPanel leaderboard={leaderboard.length > 0 ? leaderboard : getMockLeaderboard()} adapters={adapters} />
             </div>
           </motion.section>
 

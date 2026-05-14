@@ -15,7 +15,7 @@ from decisionos.schemas import (
     DISScore,
     ComponentScores,
 )
-from decisionos.tasks import TASK_REGISTRY
+from decisionos.tasks import TASK_REGISTRY, get_tasks_for_domain
 from decisionos.actions import validate_action
 from decisionos.graders import grade
 from decisionos.metrics import compute_dis, reward_from_grader
@@ -58,17 +58,19 @@ class DecisionEnv:
         self._completed_tasks: int = 0
         self._failed_tasks: int = 0
         self._risk_failures: int = 0
+        self.active_domain: str = "Operations"
 
     # ──────────────────────────────────────────────────────────────────
     # Public API
     # ──────────────────────────────────────────────────────────────────
 
-    def reset(self) -> ObservationSchema:
+    def reset(self, domain: str = "Operations") -> ObservationSchema:
         """Reset environment to initial state and return the first observation."""
         self._episode_id = str(uuid.uuid4())[:8].upper()
         self._step_count = 0
         self._done = False
-        self._task_queue = deepcopy(TASK_REGISTRY)
+        self.active_domain = domain
+        self._task_queue = deepcopy(get_tasks_for_domain(domain))
         self._current_task_index = 0
         self._available_budget = INITIAL_BUDGET
         self._available_time = INITIAL_TIME
@@ -184,18 +186,26 @@ class DecisionEnv:
             "dis": dis.model_dump(),
         }
 
-    def run_agent(self, agent: Any) -> Dict[str, Any]:
+    def run_agent(self, agent: Any, domain: str = "Operations") -> Dict[str, Any]:
         """
-        Run a full episode with the given agent.
+        Run a full episode with the given agent on a specific domain.
         Returns a summary dict compatible with SimulationResponse.
         """
-        self.reset()
+        self.reset(domain)
         actions_taken: List[Dict[str, Any]] = []
         rewards: List[float] = []
 
+        # Support both legacy agents and new adapters
+        agent_name = getattr(agent, "name", None)
+        if not agent_name and hasattr(agent, "get_agent_metadata"):
+            agent_name = agent.get_agent_metadata().get("id", "unknown")
+
         while not self._done:
             obs = self.get_observation()
-            action = agent.act(obs)
+            if hasattr(agent, "decide_action"):
+                action = agent.decide_action(obs)
+            else:
+                action = agent.act(obs)
             result = self.step(action)
             actions_taken.append(action)
             rewards.append(result["reward"])
@@ -204,7 +214,7 @@ class DecisionEnv:
         dis = compute_dis(self._grader_results)
 
         return {
-            "agent_name": agent.name,
+            "agent_name": agent_name,
             "episode_id": self._episode_id,
             "steps_used": self._step_count,
             "total_reward": round(self._total_reward, 4),
@@ -214,7 +224,7 @@ class DecisionEnv:
             "component_scores": dis.component_scores.model_dump(),
             "actions_taken": actions_taken,
             "rewards": [round(r, 4) for r in rewards],
-            "summary": self._build_summary(agent.name, dis),
+            "summary": self._build_summary(agent_name, dis),
         }
 
     # ──────────────────────────────────────────────────────────────────
@@ -266,9 +276,9 @@ class DecisionEnv:
     def _build_summary(self, agent_name: str, dis: DISScore) -> str:
         tier = _dis_tier(dis.final_dis)
         return (
-            f"Agent '{agent_name}' completed the episode in {self._step_count} step(s). "
+            f"Agent '{agent_name}' completed the episode in {self._step_count} step(s) in {self.active_domain}. "
             f"Final DIS: {dis.final_dis:.4f} ({tier}). "
-            f"Tasks completed: {self._completed_tasks}/{len(TASK_REGISTRY)}. "
+            f"Tasks completed: {self._completed_tasks}/{len(self._task_queue)}. "
             f"Total reward: {self._total_reward:.4f}. "
             f"Risk failures: {self._risk_failures}."
         )

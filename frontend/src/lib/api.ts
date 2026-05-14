@@ -22,8 +22,12 @@ export const api = {
     return res.json();
   },
   
-  async resetEnvironment() {
-    const res = await fetch(`${API_BASE_URL}/reset`, { method: 'POST' });
+  async resetEnvironment(domain?: string) {
+    const res = await fetch(`${API_BASE_URL}/reset`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain })
+    });
     if (!res.ok) throw new Error('Failed to reset');
     return res.json();
   },
@@ -44,8 +48,12 @@ export const api = {
     return res.json();
   },
 
-  async simulate(agentName: string) {
-    const res = await fetch(`${API_BASE_URL}/simulate/${agentName}`, { method: 'POST' });
+  async simulate(agentName: string, domain?: string) {
+    const res = await fetch(`${API_BASE_URL}/simulate/${agentName}`, { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain })
+    });
     if (!res.ok) throw new Error('Failed to simulate');
     return res.json();
   },
@@ -65,6 +73,18 @@ export const api = {
   async getMetrics() {
     const res = await fetch(`${API_BASE_URL}/metrics`);
     if (!res.ok) throw new Error('Failed to fetch metrics');
+    return res.json();
+  },
+
+  async getDomains() {
+    const res = await fetch(`${API_BASE_URL}/domains`);
+    if (!res.ok) throw new Error('Failed to fetch domains');
+    return res.json();
+  },
+
+  async getAdapters() {
+    const res = await fetch(`${API_BASE_URL}/adapters`);
+    if (!res.ok) throw new Error('Failed to fetch adapters');
     return res.json();
   }
 };

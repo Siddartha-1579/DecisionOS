@@ -7,18 +7,10 @@ from __future__ import annotations
 from typing import Any, Dict, List, Type
 
 from decisionos.environment import DecisionEnv
-from decisionos.agents import BaseAgent, RandomAgent, RuleBasedAgent, MockLLMAgent
 from decisionos.metrics import compute_dis
+from decisionos.adapters import AgentRegistry
 
-
-AGENT_REGISTRY: Dict[str, Type[BaseAgent]] = {
-    "random": RandomAgent,
-    "rule_based": RuleBasedAgent,
-    "mock_llm": MockLLMAgent,
-}
-
-
-def run_single_episode(agent: BaseAgent) -> Dict[str, Any]:
+def run_single_episode(agent: Any) -> Dict[str, Any]:
     """Run one episode with the provided agent and return the full result dict."""
     env = DecisionEnv()
     return env.run_agent(agent)
@@ -29,9 +21,10 @@ def run_benchmark(n_episodes: int = 1) -> Dict[str, Any]:
     Run all registered agents for n_episodes each.
     Returns aggregated statistics for research reporting.
     """
-    results: Dict[str, List[Dict[str, Any]]] = {name: [] for name in AGENT_REGISTRY}
+    adapters = AgentRegistry._adapters
+    results: Dict[str, List[Dict[str, Any]]] = {name: [] for name in adapters}
 
-    for name, cls in AGENT_REGISTRY.items():
+    for name, cls in adapters.items():
         for ep in range(n_episodes):
             agent = cls()
             episode_result = run_single_episode(agent)
@@ -65,8 +58,9 @@ def _aggregate(
 
     # Rank by DIS
     ranked = sorted(summary.values(), key=lambda x: x["avg_dis"], reverse=True)
+    from decisionos.adapters import AgentRegistry
     return {
         "benchmark_summary": ranked,
         "n_episodes": n_episodes,
-        "agents_evaluated": list(AGENT_REGISTRY.keys()),
+        "agents_evaluated": list(AgentRegistry._adapters.keys()),
     }
