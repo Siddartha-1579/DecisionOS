@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DecisionCore } from './components/DecisionCore';
+
 
 const generateExplainabilityFactors = (action: string, activeTask: any, prevState: any, result: any) => {
   let explanation = '';
@@ -1898,6 +1900,17 @@ export default function App() {
             </div>
 
             <div className="lg:col-span-5 flex flex-col gap-lg">
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl shadow-glass flex justify-center items-center p-4">
+                <DecisionCore 
+                  dis={state?.dis?.total_score || 0}
+                  domain={state?.observation?.active_tasks?.[0]?.domain || 'General'}
+                  riskState={state?.observation?.risk_level || 'Normal'}
+                  agent={appMode === 'human' ? 'Human Operator' : (currentBenchmarkAgent || 'AI Engine')}
+                  isBenchmarking={isBenchmarking}
+                  riskScore={appMode === 'human' ? dynamicRisk : (state?.observation?.risk_level === 'High' ? 80 : state?.observation?.risk_level === 'Elevated' ? 50 : 10)}
+                />
+              </motion.div>
+
               <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/30 rounded-2xl p-lg shadow-glow-cyan relative">
                 <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">tune</span>
