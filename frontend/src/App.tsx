@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -747,95 +747,114 @@ const AgentAnalysisPanel = ({ leaderboard, adapters }: { leaderboard: any[], ada
   );
 };
 
-const TimelineItem = ({ item }: { item: any }) => {
+const TimelineItem = memo(({ item }: { item: any }) => {
   const [expanded, setExpanded] = useState(false);
   
-  const getIndicatorColor = (indicator: string) => {
-    if (indicator === 'green') return 'bg-signal-green shadow-[0_0_8px_rgba(52,211,153,0.8)] border-signal-green';
-    if (indicator === 'yellow') return 'bg-tertiary-container shadow-[0_0_8px_rgba(255,177,59,0.8)] border-tertiary-container';
-    if (indicator === 'red') return 'bg-alert-red shadow-glow-red border-alert-red';
-    return 'bg-outline-variant border-outline-variant';
+  let state = 'success';
+  if (item.factors?.indicator === 'red') state = 'failure';
+  else if (item.factors?.indicator === 'yellow') state = 'warning';
+  else if (item.factors?.riskImpact === 'Increased Risk Profile' || item.action === 'veto_task') state = 'escalation';
+
+  const getStateStyles = (s: string) => {
+    switch (s) {
+      case 'success': return { bg: 'bg-signal-green/10', border: 'border-signal-green/30', text: 'text-signal-green', glow: 'shadow-[0_0_10px_rgba(52,211,153,0.1)]', icon: 'check_circle', pulse: false };
+      case 'warning': return { bg: 'bg-tertiary-container/10', border: 'border-tertiary-container/30', text: 'text-tertiary-container', glow: 'shadow-[0_0_10px_rgba(255,177,59,0.1)]', icon: 'warning', pulse: false };
+      case 'escalation': return { bg: 'bg-alert-red/10', border: 'border-alert-red/30', text: 'text-alert-red', glow: 'shadow-[0_0_15px_rgba(248,113,113,0.2)]', icon: 'trending_up', pulse: true };
+      case 'failure': return { bg: 'bg-error/20', border: 'border-error/50', text: 'text-error', glow: 'shadow-[0_0_20px_rgba(239,68,68,0.3)]', icon: 'error', pulse: true };
+      default: return { bg: 'bg-surface-container', border: 'border-outline-variant', text: 'text-on-surface', glow: '', icon: 'info', pulse: false };
+    }
   };
 
-  const getTextColor = (indicator: string) => {
-    if (indicator === 'green') return 'text-signal-green';
-    if (indicator === 'yellow') return 'text-tertiary-container';
-    if (indicator === 'red') return 'text-alert-red';
-    return 'text-on-surface';
-  };
+  const styles = getStateStyles(state);
 
   return (
     <motion.div 
       layout
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="border-l border-outline-variant/30 pl-4 py-2 relative group hover:border-primary/50 transition-colors"
+      initial={{ opacity: 0, x: -30, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      className={`border rounded-lg p-3 mb-3 transition-colors ${styles.bg} ${styles.border} ${styles.glow}`}
     >
-      <div className={`absolute w-2 h-2 rounded-full border -left-[4px] top-3 transition-all ${getIndicatorColor(item.factors?.indicator || 'yellow')}`}></div>
-      
       <div 
-        className="flex justify-between items-start mb-1 cursor-pointer"
+        className="flex justify-between items-start mb-2 cursor-pointer"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-2">
-          <span className="font-label-caps text-[10px] text-primary uppercase tracking-widest">{item.action.replace('_', ' ')}</span>
-          <span className="material-symbols-outlined text-[14px] text-on-surface-variant group-hover:text-primary transition-colors">
-            {expanded ? 'expand_less' : 'expand_more'}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-space-900 border ${styles.border} ${styles.pulse ? 'animate-pulse' : ''}`}>
+            <span className={`material-symbols-outlined text-[16px] ${styles.text}`}>{styles.icon}</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`font-label-caps text-[11px] uppercase tracking-widest font-bold ${styles.text}`}>
+                {item.action.replace('_', ' ')}
+              </span>
+              <span className="text-[9px] text-on-surface-variant font-data-mono bg-space-900 px-1.5 py-0.5 rounded border border-outline-variant/30">
+                {item.timestamp || new Date(item.id || Date.now()).toISOString().substring(11, 23)}
+              </span>
+            </div>
+            <div className="text-[10px] text-on-surface-variant uppercase tracking-widest mt-0.5 flex gap-2">
+              <span>{item.type || 'operational'} event</span>
+              {item.reward !== undefined && (
+                <span className={`font-bold ${item.reward >= 0 ? 'text-signal-green' : 'text-error'}`}>
+                  {item.reward >= 0 ? '+' : ''}{item.reward} pts
+                </span>
+              )}
+            </div>
+          </div>
         </div>
-        <span className={`text-[10px] font-bold ${getTextColor(item.factors?.indicator || 'yellow')}`}>
-          {item.reward >= 0 ? '+' : ''}{item.reward} pts
+        <span className={`material-symbols-outlined text-[16px] transition-transform ${expanded ? 'rotate-180' : ''} ${styles.text} opacity-70`}>
+          expand_more
         </span>
       </div>
       
-      <p className="text-on-surface-variant text-xs mb-1 italic font-serif">"{item.factors?.explanation || item.explanation}"</p>
+      <p className="text-on-surface text-xs leading-relaxed italic border-l-2 pl-2 ml-4 border-outline-variant/30">
+        {item.factors?.explanation || item.explanation}
+      </p>
 
       <AnimatePresence>
-        {expanded && item.factors && (
+        {expanded && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden mt-3"
+            className="overflow-hidden mt-3 pl-4"
           >
-            <div className="bg-space-900/50 border border-outline-variant/20 rounded-lg p-3">
-              <h4 className="font-label-caps text-[10px] text-primary mb-2 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[12px]">analytics</span> Decision Factors
-              </h4>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="bg-space-900/60 border border-outline-variant/20 rounded-lg p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Urgency</span>
-                  <span className="text-[10px] text-on-surface">{item.factors.urgencyImpact}</span>
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">psychology</span> Consequence
+                  </span>
+                  <span className="text-[11px] text-on-surface">{item.outcome}</span>
                 </div>
                 <div>
-                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Risk Impact</span>
-                  <span className="text-[10px] text-on-surface">{item.factors.riskImpact}</span>
-                </div>
-                <div>
-                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-wider mb-1">Resources</span>
-                  <span className="text-[10px] text-on-surface">{item.factors.resourceImpact}</span>
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">warning</span> Risk Impact
+                  </span>
+                  <span className={`text-[11px] font-medium ${item.factors?.riskImpact?.includes('High') || item.factors?.riskImpact?.includes('Increased') ? 'text-alert-red' : 'text-on-surface'}`}>
+                    {item.factors?.riskImpact || 'Nominal'}
+                  </span>
                 </div>
               </div>
+
+              {item.projections && item.projections.severity !== 'Stable' && (
+                <div className="border-t border-outline-variant/30 pt-2 mt-2">
+                  <span className="block text-[9px] text-on-surface-variant uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">online_prediction</span> Prediction Trigger
+                  </span>
+                  <span className={`text-[11px] font-bold ${item.projections.severity.includes('Critical') ? 'text-error animate-pulse' : 'text-tertiary-container'}`}>
+                    {item.projections.severity}
+                  </span>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {item.projections && (
-        <div className="mt-3 pl-2 border-l-2 border-outline-variant/50 text-xs flex items-center gap-2">
-          <span className="font-label-caps opacity-60">Projection:</span>
-          <span className={`font-medium ${
-            item.projections.severity === 'Critical Escalation' ? 'text-error' :
-            item.projections.severity === 'High Risk' ? 'text-alert-red' :
-            item.projections.severity === 'Moderate Concern' ? 'text-tertiary-container' : 'text-signal-green'
-          }`}>
-            {item.projections.severity}
-          </span>
-        </div>
-      )}
     </motion.div>
   );
-};
+});
 
 const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('gpt');
@@ -1243,7 +1262,9 @@ export default function App() {
         explanation: factors.explanation,
         outcome: result.info?.outcome || 'Action executed successfully.',
         factors,
-        projections: futureProjections
+        projections: futureProjections,
+        timestamp: new Date().toISOString().substring(11, 23),
+        type: actionType === 'veto_task' ? 'risk' : 'operational'
       };
       setHistory(prev => [newHistoryItem, ...prev]);
       setError(null);
@@ -1938,18 +1959,27 @@ export default function App() {
                 </div>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass flex-grow relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary via-secondary to-transparent opacity-50"></div>
-                <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2 pl-4">
-                  <span className="material-symbols-outlined text-tertiary">history</span>
-                  Simulation Timeline
-                </h3>
-                <div className="flex flex-col gap-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar pl-4">
-                  <AnimatePresence>
-                    {history.length > 0 ? history.map((item) => (
+              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-0 shadow-glass flex-grow relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-transparent opacity-50"></div>
+                <div className="p-4 border-b border-outline-variant/20 bg-space-900/40 flex justify-between items-center z-10">
+                  <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-tertiary">data_usage</span>
+                    System Event Feed
+                  </h3>
+                  <div className="flex gap-2">
+                    <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest bg-space-800 border border-outline-variant/30 text-on-surface-variant">Live</span>
+                    <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest bg-primary/10 border border-primary/30 text-primary animate-pulse">Tracking</span>
+                  </div>
+                </div>
+                <div className="flex flex-col flex-grow h-[250px] overflow-y-auto pr-2 custom-scrollbar p-4 relative">
+                  <AnimatePresence initial={false}>
+                    {history.length > 0 ? history.slice(0, 30).map((item) => (
                       <TimelineItem key={item.id} item={item} />
                     )) : (
-                      <div className="text-on-surface-variant text-xs italic opacity-50">Timeline initialized. Awaiting sequence...</div>
+                      <div className="h-full flex flex-col items-center justify-center text-on-surface-variant text-xs italic opacity-50">
+                        <span className="material-symbols-outlined text-3xl mb-2 opacity-50">wifi_tethering</span>
+                        Feed active. Awaiting operational events...
+                      </div>
                     )}
                   </AnimatePresence>
                 </div>
