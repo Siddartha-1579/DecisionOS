@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
