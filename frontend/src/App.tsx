@@ -3,6 +3,7 @@ import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DecisionCore } from './components/DecisionCore';
+import { DynamicBackground } from './components/DynamicBackground';
 
 
 const generateExplainabilityFactors = (action: string, activeTask: any, prevState: any, result: any) => {
@@ -1561,6 +1562,15 @@ export default function App() {
 
   const isRiskElevated = state?.observation?.risk_level === 'Elevated' || state?.observation?.risk_level === 'High';
 
+  let currentRiskState: 'Stable' | 'Elevated' | 'Critical' = 'Stable';
+  if (appMode === 'human') {
+    if (dynamicRisk > 60) currentRiskState = 'Critical';
+    else if (dynamicRisk > 30) currentRiskState = 'Elevated';
+  } else {
+    if (state?.observation?.risk_level === 'High') currentRiskState = 'Critical';
+    else if (state?.observation?.risk_level === 'Elevated') currentRiskState = 'Elevated';
+  }
+
   // Animation Variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -1724,17 +1734,7 @@ export default function App() {
       </nav>
 
       <main className="lg:ml-64 pt-20 min-h-screen flex flex-col relative z-10 overflow-hidden">
-        {/* Animated Background Orbs */}
-        <motion.div 
-          animate={{ x: [0, 50, 0], y: [0, 30, 0] } as any}
-          transition={{ repeat: Infinity, duration: 15, ease: "easeInOut" as const }}
-          className="absolute top-10 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"
-        />
-        <motion.div 
-          animate={{ x: [0, -40, 0], y: [0, -50, 0] } as any}
-          transition={{ repeat: Infinity, duration: 20, ease: "easeInOut" as const }}
-          className="absolute bottom-20 right-1/4 w-[500px] h-[500px] bg-secondary/10 blur-[100px] rounded-full pointer-events-none"
-        />
+        <DynamicBackground riskState={currentRiskState} isBenchmarking={isBenchmarking} />
 
         <motion.div 
           variants={containerVariants}
