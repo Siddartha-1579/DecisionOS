@@ -1520,6 +1520,23 @@ export default function App() {
     return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
   };
 
+  const getRiskTerminology = (d: string) => {
+    if (d === 'Healthcare') return 'Patient Risk';
+    if (d === 'Cybersecurity') return 'Threat Level';
+    if (d === 'Finance') return 'Capital Exposure';
+    if (d === 'Logistics') return 'Supply Risk';
+    return 'Risk Level';
+  };
+
+  const getDomainTabActiveStyles = (dom: string) => {
+    if (dom === 'Operations') return 'bg-electric-violet/20 text-electric-violet shadow-[inset_0_0_8px_rgba(139,92,246,0.3)] font-bold';
+    if (dom === 'Healthcare') return 'bg-signal-green/20 text-signal-green shadow-[inset_0_0_8px_rgba(52,211,153,0.3)] font-bold';
+    if (dom === 'Cybersecurity') return 'bg-error/20 text-error shadow-[inset_0_0_8px_rgba(248,113,113,0.3)] font-bold';
+    if (dom === 'Finance') return 'bg-primary/20 text-primary shadow-[inset_0_0_8px_rgba(56,245,255,0.3)] font-bold';
+    if (dom === 'Logistics') return 'bg-amber-400/20 text-amber-400 shadow-[inset_0_0_8px_rgba(251,191,36,0.3)] font-bold';
+    return 'bg-tertiary-container/20 text-tertiary-container font-bold';
+  };
+
   const renderLeaderboardTowers = () => {
     let list = leaderboard.length > 0 ? [...leaderboard] : getMockLeaderboard();
     if (appMode === 'human' && humanFinalMetrics) {
@@ -1659,6 +1676,7 @@ export default function App() {
         seed={benchmarkSeed} 
         onClose={() => setBenchmarkComplete(false)} 
         leaderboard={leaderboard} 
+        activeDomain={currentDomain}
       />
 
       <AnimatePresence>
@@ -1721,7 +1739,7 @@ export default function App() {
               key={dom}
               onClick={() => handleDomainSwitch(dom)}
               disabled={loading || isBenchmarking || simulationStatus === 'in-progress'}
-              className={`px-3 py-1.5 font-label-caps text-[10px] uppercase transition-colors border-r border-outline-variant/20 last:border-0 ${currentDomain === dom ? 'bg-tertiary-container/20 text-tertiary-container shadow-[inset_0_0_8px_rgba(255,177,59,0.2)] font-bold' : 'text-on-surface-variant hover:bg-space-800'} disabled:opacity-50`}
+              className={`px-3 py-1.5 font-label-caps text-[10px] uppercase transition-colors border-r border-outline-variant/20 last:border-0 ${currentDomain === dom ? getDomainTabActiveStyles(dom) : 'text-on-surface-variant hover:bg-space-800'} disabled:opacity-50`}
             >
               {dom}
             </button>
@@ -1895,7 +1913,7 @@ export default function App() {
                     { label: 'Budget', value: formatBudget(state?.observation?.budget || 0), color: 'text-primary' },
                     { label: 'Time Elapsed', value: `T+${state?.observation?.time_elapsed || 0}:00`, color: 'text-secondary' },
                     { label: 'Workforce', value: `${formatNumber(state?.observation?.workforce || 0)} U`, color: 'text-on-surface' },
-                    { label: 'Risk Level', value: state?.observation?.risk_level || 'Normal', color: isRiskElevated ? 'text-error drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]' : 'text-on-surface' }
+                    { label: getRiskTerminology(currentDomain), value: state?.observation?.risk_level || 'Normal', color: isRiskElevated ? 'text-error drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]' : 'text-on-surface' }
                   ].map((stat, i) => (
                     <div key={i} className={`bg-space-900/50 rounded-xl p-sm border ${i === 3 && isRiskElevated ? 'border-error/40 shadow-glow-red' : 'border-outline-variant/20'}`}>
                       <span className="font-label-caps text-[10px] text-on-surface-variant block mb-1">{stat.label}</span>

@@ -9,7 +9,8 @@ export const BenchmarkOverlay = memo(({
   timeElapsed,
   seed,
   onClose,
-  leaderboard
+  leaderboard,
+  activeDomain
 }: any) => {
   const [showResults, setShowResults] = useState(false);
 
@@ -24,22 +25,21 @@ export const BenchmarkOverlay = memo(({
   if (!isBenchmarking && !showResults && !benchmarkComplete) return null;
 
   // Active domain and risk state (mock live updates for immersion)
-  const [liveMetrics, setLiveMetrics] = useState({ domain: 'Logistics', risk: 'Normal', dis: '0.000' });
+  const [liveMetrics, setLiveMetrics] = useState({ domain: activeDomain || 'Operations', risk: 'Normal', dis: '0.000' });
   
   useEffect(() => {
     if (isBenchmarking) {
       const interval = setInterval(() => {
-        const domains = ['Logistics', 'Finance', 'Cybersecurity', 'Healthcare', 'Operations'];
         const risks = ['Normal', 'Elevated', 'Normal', 'High', 'Normal'];
         setLiveMetrics({
-          domain: domains[Math.floor(Math.random() * domains.length)],
+          domain: activeDomain || 'Operations',
           risk: risks[Math.floor(Math.random() * risks.length)],
           dis: (Math.random() * 0.9 + 0.1).toFixed(3)
         });
       }, 600);
       return () => clearInterval(interval);
     }
-  }, [isBenchmarking]);
+  }, [isBenchmarking, activeDomain]);
 
   return (
     <motion.div 
@@ -69,7 +69,7 @@ export const BenchmarkOverlay = memo(({
             <span className="text-signal-green font-label-caps text-xs tracking-widest uppercase">Benchmark Integrity Verified</span>
           </div>
           <p className="text-on-surface-variant text-[10px] uppercase tracking-widest mt-2 opacity-70">
-            Evaluating under identical environment conditions
+            Same environment + same agent = same results
           </p>
           <p className="text-primary font-data-mono text-[10px] mt-1">Seed: {seed}</p>
         </motion.div>

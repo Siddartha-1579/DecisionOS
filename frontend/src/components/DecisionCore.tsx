@@ -38,6 +38,23 @@ export const DecisionCore = ({ dis, domain, riskState, agent, isBenchmarking, ri
     { animate: { rotate: 360 } as any, transition: { repeat: Infinity, duration: 20, ease: "linear" as const } } : 
     { animate: { rotate: 360 } as any, transition: { repeat: Infinity, duration: 15, ease: "linear" as const } };
 
+  const getRiskTerminology = (d: string) => {
+    if (d === 'Healthcare') return 'Critical Patient Risk';
+    if (d === 'Cybersecurity') return 'Threat Escalation';
+    if (d === 'Finance') return 'Capital Exposure';
+    if (d === 'Logistics') return 'Supply Chain Risk';
+    return 'Operational Risk';
+  };
+
+  const getDomainIcon = (d: string) => {
+    if (isBenchmarking) return 'memory';
+    if (d === 'Healthcare') return 'medical_services';
+    if (d === 'Cybersecurity') return 'security';
+    if (d === 'Finance') return 'query_stats';
+    if (d === 'Logistics') return 'local_shipping';
+    return 'psychology';
+  };
+
   return (
     <div 
       className="relative w-64 h-64 flex items-center justify-center mx-auto my-8"
@@ -109,7 +126,7 @@ export const DecisionCore = ({ dis, domain, riskState, agent, isBenchmarking, ri
         }}
       >
         <span className="material-symbols-outlined text-white/80 text-4xl">
-          {isBenchmarking ? 'memory' : 'psychology'}
+          {getDomainIcon(domain)}
         </span>
       </motion.div>
 
@@ -131,7 +148,7 @@ export const DecisionCore = ({ dis, domain, riskState, agent, isBenchmarking, ri
             <span className="font-data-mono">{dis.toFixed(4)}</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="opacity-70">Risk State:</span>
+            <span className="opacity-70">{getRiskTerminology(domain)}:</span>
             <span className="font-medium" style={{ color: stateColors[coreState] }}>{riskState}</span>
           </div>
           <div className="flex justify-between text-xs">
