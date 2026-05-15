@@ -4,6 +4,7 @@ import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DecisionCore } from './components/DecisionCore';
 import { DynamicBackground } from './components/DynamicBackground';
+import { BenchmarkOverlay } from './components/BenchmarkOverlay';
 
 
 const generateExplainabilityFactors = (action: string, activeTask: any, prevState: any, result: any) => {
@@ -1104,6 +1105,7 @@ export default function App() {
   const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
 
   const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [benchmarkComplete, setBenchmarkComplete] = useState(false);
   const [currentBenchmarkAgent, setCurrentBenchmarkAgent] = useState<string | null>(null);
   const [benchmarkProgress, setBenchmarkProgress] = useState(0);
   const [benchmarkTime, setBenchmarkTime] = useState(0);
@@ -1296,6 +1298,7 @@ export default function App() {
   const handleRunBenchmarkSuite = async () => {
     try {
       setIsBenchmarking(true);
+      setBenchmarkComplete(false);
       setBenchmarkProgress(0);
       setBenchmarkTime(0);
       
@@ -1347,6 +1350,7 @@ export default function App() {
       setLeaderboard(results);
       setCurrentBenchmarkAgent(null);
       setIsBenchmarking(false);
+      setBenchmarkComplete(true);
       await fetchState(); // Restore original state representation
     } catch (err) {
       console.error(err);
@@ -1590,53 +1594,16 @@ export default function App() {
 
   return (
     <>
-      <AnimatePresence>
-        {isBenchmarking && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-space-900/90 backdrop-blur-xl flex flex-col items-center justify-center"
-          >
-            <motion.div 
-              animate={{ rotate: 360 } as any}
-              transition={{ repeat: Infinity, duration: 4, ease: "linear" as const }}
-              className="relative w-48 h-48 flex items-center justify-center mb-8"
-            >
-              <div className="absolute inset-0 rounded-full border-t-4 border-secondary shadow-glow-violet opacity-80"></div>
-              <div className="absolute inset-4 rounded-full border-b-4 border-primary shadow-glow-cyan opacity-60" style={{ animationDirection: 'reverse' }}></div>
-              <span className="material-symbols-outlined text-4xl text-primary absolute">memory</span>
-            </motion.div>
-            
-            <h2 className="text-3xl font-display-lg text-on-surface mb-2 shadow-glow-violet tracking-tight">Benchmarking in Progress</h2>
-            <p className="text-primary font-label-caps text-lg uppercase tracking-widest mb-8 animate-pulse">
-              Currently Testing: {currentBenchmarkAgent?.replace('_', ' ')}
-            </p>
-            
-            <div className="w-96 bg-surface-container rounded-full h-2 mb-4 overflow-hidden border border-outline-variant/30">
-              <motion.div 
-                className="bg-gradient-to-r from-primary to-secondary h-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${benchmarkProgress}%` }}
-              />
-            </div>
-            
-            <div className="flex gap-16 font-data-mono text-sm text-on-surface-variant">
-              <span>Progress: {Math.round(benchmarkProgress)}%</span>
-              <span>Time Elapsed: {benchmarkTime}s</span>
-              <span>Seed: {benchmarkSeed}</span>
-            </div>
-            
-            <div className="mt-12 text-xs text-on-surface-variant italic opacity-60 flex flex-col items-center gap-2">
-              <span className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm">verified_user</span>
-                All benchmark agents operate under deterministic evaluation conditions.
-              </span>
-              <span>Model-Agnostic Benchmarking Layer Active</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BenchmarkOverlay 
+        isBenchmarking={isBenchmarking} 
+        benchmarkComplete={benchmarkComplete}
+        benchmarkProgress={benchmarkProgress} 
+        currentAgent={currentBenchmarkAgent} 
+        timeElapsed={benchmarkTime} 
+        seed={benchmarkSeed} 
+        onClose={() => setBenchmarkComplete(false)} 
+        leaderboard={leaderboard} 
+      />
 
       <AnimatePresence>
         {loading && !isBenchmarking && (
