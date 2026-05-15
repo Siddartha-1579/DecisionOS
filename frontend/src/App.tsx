@@ -1101,6 +1101,7 @@ export default function App() {
   const [history, setHistory] = useState<any[]>([]);
 
   const [appMode, setAppMode] = useState<'human' | 'ai'>('human');
+  const [currentDomain, setCurrentDomain] = useState('Operations');
   const [simulationStatus, setSimulationStatus] = useState<'idle' | 'in-progress' | 'completed'>('idle');
   const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
 
@@ -1148,10 +1149,10 @@ export default function App() {
     fetchState();
   }, []);
 
-  const handleReset = async () => {
+  const handleReset = async (domain: string = currentDomain) => {
     try {
       setLoading(true);
-      const data = await api.resetEnvironment();
+      const data = await api.resetEnvironment(domain);
       setState(data);
       setFallbackMode(false);
       setError(null);
@@ -1166,6 +1167,32 @@ export default function App() {
     } catch (err) {
       console.error(err);
       setError('Failed to reset environment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDomainSwitch = async (domain: string) => {
+    setCurrentDomain(domain);
+    try {
+      setLoading(true);
+      const data = await api.resetEnvironment(domain);
+      setState(data);
+      setFallbackMode(false);
+      setError(null);
+      setLeaderboard([]);
+      setHistory([]);
+      setSimulationStatus('idle');
+      setHumanFinalMetrics(null);
+      setDynamicRisk(0);
+      setRiskMomentum(1.0);
+      setConsecutiveSuccesses(0);
+      setCrisisHistory([]);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to switch domain.');
+      setFallbackMode(true);
+      setState(getMockState(domain));
     } finally {
       setLoading(false);
     }
@@ -1316,8 +1343,8 @@ export default function App() {
         const agent = agentsToTest[i];
         setCurrentBenchmarkAgent(agent);
         
-        await api.resetEnvironment();
-        const result = await api.simulate(agent);
+        await api.resetEnvironment(currentDomain);
+        const result = await api.simulate(agent, currentDomain);
         
         const baseDis = result.final_dis || Math.random();
         
@@ -1420,17 +1447,43 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const getMockState = () => ({
-    observation: {
-      budget: 4200000,
-      time_elapsed: 14,
-      workforce: 1240,
-      risk_level: 'Elevated',
-      active_tasks: [
-        { id: 'T1', title: 'Optimize Supply Chain Route', domain: 'Logistics', urgency: 'Critical', importance: 'High' },
-        { id: 'T2', title: 'Allocate Q3 Operational Budget', domain: 'Finance', urgency: 'Medium', importance: 'Medium' }
-      ]
-    },
+  const getMockState = (domain: string = 'Operations') => {
+    let tasks: any[] = [];
+    if (domain === 'Operations') {
+      tasks = [
+        { id: 'OP1', title: 'Production DB Outage', domain: 'Operations', urgency: 'Critical', importance: 'High' },
+        { id: 'OP2', title: 'Sprint Allocation', domain: 'Operations', urgency: 'Medium', importance: 'Medium' }
+      ];
+    } else if (domain === 'Finance') {
+      tasks = [
+        { id: 'FIN1', title: 'High-Value Fraud Alert', domain: 'Finance', urgency: 'Critical', importance: 'High' },
+        { id: 'FIN2', title: 'Q3 Budget Deployment', domain: 'Finance', urgency: 'Medium', importance: 'High' }
+      ];
+    } else if (domain === 'Healthcare') {
+      tasks = [
+        { id: 'HC1', title: 'Emergency Triage: Cardiac Arrest', domain: 'Healthcare', urgency: 'Critical', importance: 'High' },
+        { id: 'HC2', title: 'ICU Bed Distribution', domain: 'Healthcare', urgency: 'High', importance: 'High' }
+      ];
+    } else if (domain === 'Cybersecurity') {
+      tasks = [
+        { id: 'CYB1', title: 'Active DDoS Mitigation', domain: 'Cybersecurity', urgency: 'Critical', importance: 'High' },
+        { id: 'CYB2', title: 'Incident Response Dispatch', domain: 'Cybersecurity', urgency: 'High', importance: 'Medium' }
+      ];
+    } else if (domain === 'Logistics') {
+      tasks = [
+        { id: 'LOG1', title: 'Perishable Goods Delay', domain: 'Logistics', urgency: 'Critical', importance: 'High' },
+        { id: 'LOG2', title: 'Fleet Routing Optimization', domain: 'Logistics', urgency: 'Medium', importance: 'Medium' }
+      ];
+    }
+
+    return {
+      observation: {
+        budget: 4200000,
+        time_elapsed: 14,
+        workforce: 1240,
+        risk_level: 'Elevated',
+        active_tasks: tasks
+      },
     metrics: {
       total_reward: 12450,
       completed_tasks: 843,
@@ -1440,7 +1493,8 @@ export default function App() {
       total_score: 0.942,
       component_scores: { correctness: 0.96, utilization: 0.82, adherence: 0.88 }
     }
-  });
+  };
+};
 
   const getMockLeaderboard = () => [
     { agent_name: 'random', final_dis: 0.124, completed_tasks: 45, risk_failures: 156, total_reward: 1200, accuracy: 0.15, efficiency: 0.10 },
@@ -1461,6 +1515,8 @@ export default function App() {
     if (d.includes('logistic')) return 'bg-blue-500/10 text-blue-glow border-blue-glow/30 shadow-[0_0_10px_rgba(96,165,250,0.2)]';
     if (d.includes('finance')) return 'bg-emerald-500/10 text-signal-green border-signal-green/30 shadow-[0_0_10px_rgba(52,211,153,0.2)]';
     if (d.includes('operation')) return 'bg-purple-500/10 text-electric-violet border-electric-violet/30 shadow-[0_0_10px_rgba(139,92,246,0.2)]';
+    if (d.includes('health')) return 'bg-rose-500/10 text-error border-error/30 shadow-[0_0_10px_rgba(248,113,113,0.2)]';
+    if (d.includes('cyber')) return 'bg-cyan-500/10 text-primary border-primary/30 shadow-[0_0_10px_rgba(56,245,255,0.2)]';
     return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
   };
 
@@ -1658,6 +1714,20 @@ export default function App() {
           </button>
         </div>
 
+        {/* Domain Selector */}
+        <div className="hidden lg:flex items-center bg-surface-container rounded-lg border border-outline-variant/30 overflow-hidden shadow-glass">
+          {['Operations', 'Finance', 'Healthcare', 'Cybersecurity', 'Logistics'].map(dom => (
+            <button
+              key={dom}
+              onClick={() => handleDomainSwitch(dom)}
+              disabled={loading || isBenchmarking || simulationStatus === 'in-progress'}
+              className={`px-3 py-1.5 font-label-caps text-[10px] uppercase transition-colors border-r border-outline-variant/20 last:border-0 ${currentDomain === dom ? 'bg-tertiary-container/20 text-tertiary-container shadow-[inset_0_0_8px_rgba(255,177,59,0.2)] font-bold' : 'text-on-surface-variant hover:bg-space-800'} disabled:opacity-50`}
+            >
+              {dom}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-6">
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -1692,7 +1762,7 @@ export default function App() {
         <motion.button 
           whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(56,245,255,0.3)" }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleReset} disabled={loading} 
+          onClick={() => handleReset()} disabled={loading} 
           className="w-full bg-primary/20 border border-primary/50 text-primary hover:bg-primary/30 font-label-caps tracking-widest py-3 px-4 rounded-lg mb-8 flex items-center justify-center gap-2 shadow-glow-cyan transition-colors"
         >
           <span className="material-symbols-outlined text-sm">restart_alt</span>
