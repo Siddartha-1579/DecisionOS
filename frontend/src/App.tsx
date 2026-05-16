@@ -1341,94 +1341,63 @@ export default function App() {
   };
 
   const handleRunBenchmarkSuite = async () => {
-    let timerInterval: any;
-    try {
-      setIsBenchmarking(true);
-      setBenchmarkComplete(false);
-      setBenchmarkProgress(0);
-      setBenchmarkTime(0);
-      setError(null);
-      
-      const seed = Math.floor(Math.random() * 10000);
-      setBenchmarkSeed(seed);
-      
-      const agentsToTest = adapters.length > 0 ? adapters.map(a => a.id) : ['random', 'rule_based', 'mock_llm'];
-      const results = [];
-      
-      timerInterval = setInterval(() => {
-        setBenchmarkTime(prev => prev + 1);
-      }, 1000);
+    // 1. DO NOT wait for backend.
+    // 2. DO NOT navigate.
+    // 3. DO NOT reload page.
+    setIsBenchmarking(true);
+    setBenchmarkProgress(0);
+    setBenchmarkComplete(false);
+    
+    // Optional future async sync:
+    // await api.resetEnvironment(currentDomain);
+    // await api.simulate(agent, currentDomain);
 
-      for (let i = 0; i < agentsToTest.length; i++) {
-        const agent = agentsToTest[i];
-        setCurrentBenchmarkAgent(agent);
-        
-        try {
-          await api.resetEnvironment(currentDomain);
-          
-          const simulatePromise = api.simulate(agent, currentDomain);
-          const timeoutPromise = new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
-          
-          const result = await Promise.race([simulatePromise, timeoutPromise]);
-          
-          const baseDis = result?.final_dis ?? Math.random();
-          
-          // Derive dynamic risk for AI based on final metrics
-          const riskFails = result?.risk_failures ?? 0;
-          const incorrectness = 1 - (result?.component_scores?.correctness ?? 1);
-          const inefficiency = 1 - (result?.component_scores?.utilization ?? 1);
-          let aiRisk = (riskFails * 15) + (incorrectness * 50) + (inefficiency * 30);
-          aiRisk = Math.min(Math.max(aiRisk, 0), 100);
-          
-          const penalty = (aiRisk / 100) * 0.20;
-          const finalDis = Math.max(0, baseDis - penalty);
-
-          results.push({
-            agent_name: agent,
-            final_dis: finalDis,
-            base_dis: baseDis,
-            risk_penalty: penalty,
-            completed_tasks: result?.completed_tasks ?? 0,
-            risk_failures: result?.risk_failures ?? 0,
-            total_reward: result?.total_reward ?? 0,
-            accuracy: result?.component_scores?.correctness ?? (0.1 + Math.random()*0.8),
-            efficiency: result?.component_scores?.utilization ?? (0.1 + Math.random()*0.8)
-          });
-        } catch (innerErr) {
-          console.warn(`Agent ${agent} failed or timed out:`, innerErr);
-          throw innerErr; // Force fallback logic
+    // 5. Show results within 300ms.
+    setTimeout(() => {
+      // Required local benchmark results
+      const fallbackResults = [
+        { agent_name: 'random', final_dis: 0.425, base_dis: 0.425, risk_penalty: 0, completed_tasks: 1, risk_failures: 62, total_reward: 0.21, accuracy: 0.45, efficiency: 0.38, is_fallback: true, status: 'Baseline' },
+        { agent_name: 'rule_based', final_dis: 0.718, base_dis: 0.718, risk_penalty: 0, completed_tasks: 2, risk_failures: 26, total_reward: 0.54, accuracy: 0.78, efficiency: 0.74, is_fallback: true, status: 'Stable' },
+        { agent_name: 'mock_llm', final_dis: 0.864, base_dis: 0.864, risk_penalty: 0, completed_tasks: 4, risk_failures: 12, total_reward: 0.78, accuracy: 0.84, efficiency: 0.88, is_fallback: true, status: 'Best Performer' }
+      ];
+      
+      setLeaderboard(fallbackResults);
+      
+      // Update KPI cards immediately
+      setState((prevState: any) => ({
+        ...prevState,
+        metrics: {
+          total_reward: 0.78,
+          completed_tasks: 4,
+          risk_failures: 12
+        },
+        dis: {
+          total_score: 0.864,
+          base_score: 0.864,
+          risk_penalty: 0,
+          component_scores: { correctness: 0.84, utilization: 0.88, adherence: 0.86 }
         }
-        
-        setBenchmarkProgress(((i + 1) / agentsToTest.length) * 100);
-      }
+      }));
       
-      clearInterval(timerInterval);
-      setLeaderboard(results);
-      setCurrentBenchmarkAgent(null);
+      // Add event feed message
+      setHistory((prev: any[]) => [{
+        id: Date.now(),
+        action: 'benchmark_suite',
+        reward: 0.78,
+        explanation: 'Benchmark Suite completed using deterministic local preview.',
+        outcome: 'Evaluation complete. Backend execution can be connected for full async evaluation; this preview is used for stable live presentation.',
+        factors: { explanation: 'Benchmark Suite completed using deterministic local preview.' },
+        projections: [],
+        timestamp: new Date().toISOString().substring(11, 23),
+        type: 'operational'
+      }, ...prev]);
+      
+      setError('Demo Benchmark Preview — deterministic local benchmark results. Backend benchmark execution can be connected for full async evaluation; this preview is used for stable live presentation.');
+      
       setIsBenchmarking(false);
       setBenchmarkComplete(true);
-      
-      try {
-        await fetchState(); // Restore original state representation
-      } catch (err) {
-        console.warn("fetchState failed after benchmark");
-      }
-    } catch (err) {
-      console.error("Benchmark suite error:", err);
-      setError('Benchmark service delayed. Using local deterministic preview.');
-      
-      // Deterministic local fallback preview
-      setLeaderboard([
-        { agent_name: 'random', final_dis: 0.124, base_dis: 0.2, risk_penalty: 0.076, completed_tasks: 45, risk_failures: 156, total_reward: 1200, accuracy: 0.15, efficiency: 0.10, is_fallback: true },
-        { agent_name: 'rule_based', final_dis: 0.548, base_dis: 0.6, risk_penalty: 0.052, completed_tasks: 412, risk_failures: 23, total_reward: 5400, accuracy: 0.60, efficiency: 0.55, is_fallback: true },
-        { agent_name: 'mock_llm', final_dis: 0.942, base_dis: 0.96, risk_penalty: 0.018, completed_tasks: 843, risk_failures: 2, total_reward: 12450, accuracy: 0.96, efficiency: 0.82, is_fallback: true }
-      ]);
-      setBenchmarkComplete(true);
-    } finally {
-      if (timerInterval) clearInterval(timerInterval);
-      setCurrentBenchmarkAgent(null);
-      setIsBenchmarking(false);
-    }
+      setBenchmarkProgress(100);
+    }, 250);
   };
 
   const handleCompareAgents = async () => {
