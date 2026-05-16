@@ -868,7 +868,13 @@ const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose
       setSimulationComplete(false);
       setIsSimulating(false);
     }
-  }, [isOpen]);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -895,6 +901,9 @@ const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       className="fixed inset-0 z-[200] bg-space-900/95 backdrop-blur-3xl flex items-center justify-center p-4 overflow-y-auto"
     >
       <motion.div 
@@ -902,8 +911,9 @@ const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose
         animate={{ scale: 1, y: 0 }}
         className="bg-surface-container/50 border border-outline-variant/30 rounded-3xl w-full max-w-6xl shadow-2xl relative flex flex-col my-8"
       >
-        <button onClick={onClose} className="absolute top-6 right-6 text-on-surface-variant hover:text-primary transition-colors">
-          <span className="material-symbols-outlined text-3xl">close</span>
+        <button onClick={onClose} className="absolute top-6 right-6 text-on-surface hover:text-error bg-space-800/80 px-4 py-2 rounded-full border border-outline-variant transition-colors flex items-center gap-2 z-50">
+          <span className="material-symbols-outlined text-xl">close</span>
+          <span className="font-label-caps tracking-widest text-xs font-bold uppercase">Exit Preview</span>
         </button>
 
         <div className="p-8 border-b border-outline-variant/20">
@@ -1085,6 +1095,13 @@ const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose
                 </div>
               )}
             </AnimatePresence>
+            
+            <div className="mt-8 flex justify-end">
+              <button onClick={onClose} className="px-6 py-3 bg-space-800 border border-outline-variant/50 rounded-lg text-on-surface font-label-caps uppercase tracking-widest hover:border-primary/50 hover:text-primary transition-colors shadow-glass flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                Back to Dashboard
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -1750,18 +1767,6 @@ export default function App() {
 
   return (
     <>
-      <BenchmarkOverlay 
-        isBenchmarking={isBenchmarking} 
-        benchmarkComplete={benchmarkComplete}
-        benchmarkProgress={benchmarkProgress} 
-        currentAgent={currentBenchmarkAgent} 
-        timeElapsed={benchmarkTime} 
-        seed={benchmarkSeed} 
-        onClose={() => setBenchmarkComplete(false)} 
-        leaderboard={leaderboard} 
-        activeDomain={currentDomain}
-      />
-
       <AnimatePresence>
         {loading && !isBenchmarking && (
           <motion.div 
