@@ -1122,10 +1122,7 @@ export default function App() {
   const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
 
   const [isBenchmarking, setIsBenchmarking] = useState(false);
-  const [benchmarkComplete, setBenchmarkComplete] = useState(false);
   const [currentBenchmarkAgent, setCurrentBenchmarkAgent] = useState<string | null>(null);
-  const [benchmarkProgress, setBenchmarkProgress] = useState(0);
-  const [benchmarkTime, setBenchmarkTime] = useState(0);
   const [benchmarkSeed, setBenchmarkSeed] = useState<number | null>(null);
 
   const [dynamicRisk, setDynamicRisk] = useState(0);
@@ -1361,6 +1358,8 @@ export default function App() {
     // 2. DO NOT navigate.
     // 3. DO NOT reload page.
     setIsBenchmarking(true);
+    setCurrentBenchmarkAgent('mock_llm');
+    setBenchmarkSeed(42);
     
     // Optional future async sync:
     // await api.resetEnvironment(currentDomain);
