@@ -1179,11 +1179,9 @@ export default function App() {
         console.error("Failed to fetch adapters", err);
       }
       
-      setFallbackMode(false);
     } catch (err: any) {
       console.error(err);
       setError('Backend unavailable. Using fallback mock data.');
-      setFallbackMode(true);
       setState(getMockState());
     } finally {
       setLoading(false);
@@ -1199,7 +1197,6 @@ export default function App() {
       setLoading(true);
       const data = await api.resetEnvironment(domain);
       setState(data);
-      setFallbackMode(false);
       setError(null);
       setLeaderboard([]);
       setHistory([]);
@@ -1212,7 +1209,6 @@ export default function App() {
     } catch (err) {
       console.error(err);
       setError('Failed to reset environment. Using fallback.');
-      setFallbackMode(true);
       setState(getMockState(domain));
       setLeaderboard([]);
       setHistory([]);
@@ -1617,14 +1613,6 @@ export default function App() {
     if (d.includes('health')) return 'bg-rose-500/10 text-error border-error/30 shadow-[0_0_10px_rgba(248,113,113,0.2)]';
     if (d.includes('cyber')) return 'bg-cyan-500/10 text-primary border-primary/30 shadow-[0_0_10px_rgba(56,245,255,0.2)]';
     return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
-  };
-
-  const getRiskTerminology = (d: string) => {
-    if (d === 'Healthcare') return 'Patient Risk';
-    if (d === 'Cybersecurity') return 'Threat Level';
-    if (d === 'Finance') return 'Capital Exposure';
-    if (d === 'Logistics') return 'Supply Risk';
-    return 'Risk Level';
   };
 
   const getDomainTabActiveStyles = (dom: string) => {
