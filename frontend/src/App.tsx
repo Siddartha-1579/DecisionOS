@@ -1149,6 +1149,7 @@ export default function App() {
   const [history, setHistory] = useState<any[]>([]);
 
   const [appMode, setAppMode] = useState<'human' | 'ai'>('human');
+  const [isAiRunning, setIsAiRunning] = useState(false);
   const [currentDomain, setCurrentDomain] = useState('Operations');
   const [simulationStatus, setSimulationStatus] = useState<'idle' | 'in-progress' | 'completed'>('idle');
   const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
@@ -1191,6 +1192,28 @@ export default function App() {
   useEffect(() => {
     fetchState();
   }, []);
+
+  useEffect(() => {
+    if (appMode === 'ai' && isAiRunning && !isBenchmarking && simulationStatus !== 'completed') {
+       const timer = setTimeout(() => {
+         const currentTasks = state?.observation?.active_tasks || fallbackTasksByDomain[currentDomain] || [];
+         const activeTask = currentTasks[0];
+         if (!activeTask || currentTasks.length === 0) {
+           setIsAiRunning(false);
+           setSimulationStatus('completed');
+           return;
+         }
+         
+         let actionToTake = 'step';
+         if (activeTask.urgency === 'Critical' || activeTask.urgency === 'High') actionToTake = 'prioritize_task';
+         else if (activeTask.risk_level === 'High' || activeTask.risk_level === 'Elevated') actionToTake = 'veto_task';
+         else if (activeTask.resources_required > 0) actionToTake = 'allocate_resources';
+         
+         handleAction(actionToTake);
+       }, 500);
+       return () => clearTimeout(timer);
+    }
+  }, [appMode, isAiRunning, state, isBenchmarking, simulationStatus, currentDomain]);
 
   const handleReset = async (domain: string = currentDomain) => {
     try {
@@ -1376,11 +1399,15 @@ export default function App() {
       const factors = generateExplainabilityFactors(actionType, activeTask, prevState, result);
       const futureProjections = generateFutureProjections({ observation: result.observation, metrics: result.metrics, dis: enhancedDis });
       
+      const aiReason = appMode === 'ai' 
+        ? `AI Agent ${actionType} due to ${activeTask?.urgency || 'Normal'} urgency and ${activeTask?.risk_level || 'Normal'} risk.`
+        : '';
+      
       const newHistoryItem = {
         id: Date.now(),
         action: actionType,
         reward: result.reward || 0,
-        explanation: factors.explanation,
+        explanation: aiReason || factors.explanation,
         outcome: result.info?.outcome || 'Action executed successfully.',
         factors,
         projections: futureProjections,
@@ -2164,32 +2191,71 @@ export default function App() {
                 />
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/30 rounded-2xl p-lg shadow-glow-cyan relative">
-                <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary">tune</span>
-                  Action Control Matrix
-                </h3>
-                <div className="grid grid-cols-2 gap-sm">
-                  {[
-                    { action: 'prioritize_task', label: 'PRIORITIZE', icon: 'priority_high', color: 'primary' },
-                    { action: 'allocate_resources', label: 'ALLOCATE', icon: 'call_split', color: 'secondary' },
-                    { action: 'veto_task', label: 'VETO', icon: 'block', color: 'outline-variant' },
-                    { action: 'step', label: 'STEP', icon: 'step_into', color: 'signal-green' }
-                  ].map((btn, i) => (
+              {appMode === 'human' ? (
+                <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/30 rounded-2xl p-lg shadow-glow-cyan relative">
+                  <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">tune</span>
+                    Action Control Matrix
+                  </h3>
+                  <div className="grid grid-cols-2 gap-sm">
+                    {[
+                      { action: 'prioritize_task', label: 'PRIORITIZE', icon: 'priority_high', color: 'primary' },
+                      { action: 'allocate_resources', label: 'ALLOCATE', icon: 'call_split', color: 'secondary' },
+                      { action: 'veto_task', label: 'VETO', icon: 'block', color: 'outline-variant' },
+                      { action: 'step', label: 'STEP', icon: 'step_into', color: 'signal-green' }
+                    ].map((btn, i) => (
+                      <motion.button 
+                        key={i}
+                        whileHover={simulationStatus !== 'completed' ? { scale: 1.05, y: -2 } : {}}
+                        whileTap={simulationStatus !== 'completed' ? { scale: 0.95 } : {}}
+                        onClick={() => handleAction(btn.action)} 
+                        disabled={loading || simulationStatus === 'completed'} 
+                        className={`bg-space-900/60 hover:bg-space-800 border border-${btn.color}/30 text-${btn.color} font-label-caps text-xs py-4 px-4 rounded-xl flex flex-col items-center gap-2 transition-colors shadow-[inset_0_0_15px_rgba(255,255,255,0.02)] ${simulationStatus === 'completed' ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                      >
+                        <span className="material-symbols-outlined text-xl">{btn.icon}</span>
+                        {btn.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-secondary/30 rounded-2xl p-lg shadow-glow-violet relative text-center">
+                  <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-secondary">smart_toy</span>
+                    AI Agent Automation
+                  </h3>
+                  <div className="mb-4 text-sm text-on-surface-variant font-medium">
+                    {simulationStatus === 'completed' ? (
+                      <span className="text-primary font-bold">AI Agent Run Complete</span>
+                    ) : isAiRunning ? (
+                      <span className="text-secondary animate-pulse flex items-center justify-center gap-2"><span className="material-symbols-outlined text-sm animate-spin">sync</span> AI agent is evaluating task...</span>
+                    ) : (
+                      <span className="text-signal-green">AI Agent Ready. Awaiting trigger.</span>
+                    )}
+                  </div>
+                  
+                  {isAiRunning ? (
                     <motion.button 
-                      key={i}
-                      whileHover={appMode === 'human' && simulationStatus !== 'completed' ? { scale: 1.05, y: -2 } : {}}
-                      whileTap={appMode === 'human' && simulationStatus !== 'completed' ? { scale: 0.95 } : {}}
-                      onClick={() => handleAction(btn.action)} 
-                      disabled={loading || appMode !== 'human' || simulationStatus === 'completed'} 
-                      className={`bg-space-900/60 hover:bg-space-800 border border-${btn.color}/30 text-${btn.color} font-label-caps text-xs py-4 px-4 rounded-xl flex flex-col items-center gap-2 transition-colors shadow-[inset_0_0_15px_rgba(255,255,255,0.02)] ${appMode !== 'human' || simulationStatus === 'completed' ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setIsAiRunning(false)} 
+                      className="w-full bg-error/20 border border-error/50 text-error font-label-caps px-6 py-4 rounded-xl shadow-glow-red hover:bg-error/30 transition-colors flex items-center justify-center gap-2"
                     >
-                      <span className="material-symbols-outlined text-xl">{btn.icon}</span>
-                      {btn.label}
+                      <span className="material-symbols-outlined">stop_circle</span> STOP AI RUN
                     </motion.button>
-                  ))}
-                </div>
-              </motion.div>
+                  ) : (
+                    <motion.button 
+                      whileHover={simulationStatus !== 'completed' ? { scale: 1.02 } : {}}
+                      whileTap={simulationStatus !== 'completed' ? { scale: 0.98 } : {}}
+                      onClick={() => setIsAiRunning(true)} 
+                      disabled={simulationStatus === 'completed'}
+                      className={`w-full bg-secondary/20 border border-secondary/50 text-secondary font-label-caps px-6 py-4 rounded-xl shadow-glow-violet hover:bg-secondary/30 transition-colors flex items-center justify-center gap-2 ${simulationStatus === 'completed' ? 'opacity-50 cursor-not-allowed grayscale' : ''}`}
+                    >
+                      <span className="material-symbols-outlined">play_circle</span> {simulationStatus === 'completed' ? 'RUN COMPLETE' : 'RUN AI AGENT'}
+                    </motion.button>
+                  )}
+                </motion.div>
+              )}
 
               <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-0 shadow-glass flex-grow relative overflow-hidden flex flex-col">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-transparent opacity-50"></div>
