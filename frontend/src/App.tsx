@@ -1347,6 +1347,9 @@ export default function App() {
     setIsBenchmarking(true);
     setBenchmarkProgress(0);
     setBenchmarkComplete(false);
+    setBenchmarkTime(12); // Mock 12s execution
+    setBenchmarkSeed(Math.floor(Math.random() * 10000));
+    setCurrentBenchmarkAgent('deterministic_preview');
     
     // Optional future async sync:
     // await api.resetEnvironment(currentDomain);
