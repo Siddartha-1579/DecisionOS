@@ -1146,7 +1146,6 @@ export default function App() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
 
   const [appMode, setAppMode] = useState<'human' | 'ai'>('human');
@@ -1234,7 +1233,6 @@ export default function App() {
       setLoading(true);
       const data = await api.resetEnvironment(domain);
       setState(data);
-      setFallbackMode(false);
       setError(null);
       setLeaderboard([]);
       setHistory([]);
@@ -1247,7 +1245,6 @@ export default function App() {
     } catch (err) {
       console.error(err);
       setError('Failed to switch domain. Using fallback.');
-      setFallbackMode(true);
       setState(getMockState(domain));
       setLeaderboard([]);
       setHistory([]);
@@ -1279,7 +1276,6 @@ export default function App() {
         result = await api.step(payload);
       } catch (err) {
         console.warn("Backend step failed. Using deterministic fallback.", err);
-        setFallbackMode(true);
         // Deterministic local step fallback
         const reward = actionType === activeTask?.recommended_action ? 15 : -5;
         const currentTasks = state?.observation?.active_tasks || fallbackTasksByDomain[currentDomain] || [];
@@ -1796,7 +1792,7 @@ export default function App() {
     );
   };
 
-  const isRiskElevated = state?.observation?.risk_level === 'Elevated' || state?.observation?.risk_level === 'High';
+  // Helper references
 
   let currentRiskState: 'Stable' | 'Elevated' | 'Critical' = 'Stable';
   if (appMode === 'human') {
