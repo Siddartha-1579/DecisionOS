@@ -4,7 +4,6 @@ import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DecisionCore } from './components/DecisionCore';
 import { DynamicBackground } from './components/DynamicBackground';
-import { BenchmarkOverlay } from './components/BenchmarkOverlay';
 
 
 const generateExplainabilityFactors = (action: string, activeTask: any, prevState: any, result: any) => {
@@ -1123,11 +1122,6 @@ export default function App() {
   const [humanFinalMetrics, setHumanFinalMetrics] = useState<any>(null);
 
   const [isBenchmarking, setIsBenchmarking] = useState(false);
-  const [benchmarkComplete, setBenchmarkComplete] = useState(false);
-  const [currentBenchmarkAgent, setCurrentBenchmarkAgent] = useState<string | null>(null);
-  const [benchmarkProgress, setBenchmarkProgress] = useState(0);
-  const [benchmarkTime, setBenchmarkTime] = useState(0);
-  const [benchmarkSeed, setBenchmarkSeed] = useState<number | null>(null);
 
   const [dynamicRisk, setDynamicRisk] = useState(0);
   const [riskMomentum, setRiskMomentum] = useState(1.0);
@@ -1362,11 +1356,6 @@ export default function App() {
     // 2. DO NOT navigate.
     // 3. DO NOT reload page.
     setIsBenchmarking(true);
-    setBenchmarkProgress(0);
-    setBenchmarkComplete(false);
-    setBenchmarkTime(12); // Mock 12s execution
-    setBenchmarkSeed(Math.floor(Math.random() * 10000));
-    setCurrentBenchmarkAgent('deterministic_preview');
     
     // Optional future async sync:
     // await api.resetEnvironment(currentDomain);
@@ -1415,8 +1404,6 @@ export default function App() {
       setError('Demo Benchmark Preview — deterministic local benchmark results. Backend benchmark execution can be connected for full async evaluation; this preview is used for stable live presentation.');
       
       setIsBenchmarking(false);
-      setBenchmarkComplete(true);
-      setBenchmarkProgress(100);
     }, 250);
   };
 
