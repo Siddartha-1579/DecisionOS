@@ -1590,7 +1590,6 @@ export default function App() {
 
   let displayBaseScore = backendBaseScore;
   let displayAdjusted = backendAdjusted;
-  let displayPenalty = state?.dis?.risk_penalty || 0;
 
   if (!backendAdjusted && !backendBaseScore) {
     const r = state?.metrics?.total_reward || 0;
@@ -1611,7 +1610,6 @@ export default function App() {
     // Scale down to 0-1 range for formatDIS
     displayBaseScore = calcBase / 100;
     displayAdjusted = calcAdj / 100;
-    displayPenalty = penalty / 100;
   }
 
   const prevAdjustedRef = useRef(displayAdjusted);
