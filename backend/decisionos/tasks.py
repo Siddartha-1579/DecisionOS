@@ -77,79 +77,45 @@ def create_crisis_task(task_id, domain, title, alert_data, context, expl):
 # ─────────────────────────────────────────────────────────────────────────────
 
 # 1. OPERATIONS
-OP_T1 = create_prioritization_task("OP-T1", "Operations", "Production DB Outage vs Feature Requests", 
-    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "DB Outage"}],
-    "Revenue-generating DB is degraded. Customer-facing services down.",
-    "DB outage must be prioritized to avoid cascading revenue damage.")
-OP_T2 = create_allocation_task("OP-T2", "Operations", "Sprint Budget Allocation",
-    [{"project_id": "P1", "name": "Security patch"}], {},
-    "Sprint allocation. Security patch is critical.",
-    "Optimal allocation handles security first.")
-OP_T3 = create_crisis_task("OP-T3", "Operations", "Payment Gateway Failure",
-    {"type": "gateway_outage"}, "Payment gateway is throwing 500s rapidly.",
-    "escalate_issue is correct to trigger emergency engineering review.")
+OP_T1 = create_prioritization_task("OP1", "Operations", "Production Line Failure", [], "", "")
+OP_T2 = create_allocation_task("OP2", "Operations", "Workforce Allocation", [], {}, "", "")
+OP_T3 = create_crisis_task("OP3", "Operations", "Infrastructure Bottleneck", {}, "", "")
+OP_T4 = create_prioritization_task("OP4", "Operations", "Security Patch Scheduling", [], "", "")
 
 # 2. FINANCE
-FIN_T1 = create_prioritization_task("FIN-T1", "Finance", "Fraud Alerts vs System Updates",
-    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "High-Value Fraud"}],
-    "Massive fraud detected. Needs immediate halt.",
-    "Fraud must be prioritized.")
-FIN_T2 = create_allocation_task("FIN-T2", "Finance", "Q3 Budget Deployment",
-    [{"project_id": "P1", "name": "Compliance Audit"}], {},
-    "Deploying funds for Q3. Compliance is non-negotiable.",
-    "Optimal allocation handles compliance first.")
-FIN_T3 = create_crisis_task("FIN-T3", "Finance", "Suspicious Payment Cluster",
-    {"type": "fraud_cluster", "ml_fraud_score": 0.94}, "ML model flags a cluster of 47 transactions.",
-    "escalate_issue is correct to trigger fraud review team.")
+FIN_T1 = create_prioritization_task("FIN1", "Finance", "Fraud Detection Alert", [], "", "")
+FIN_T2 = create_allocation_task("FIN2", "Finance", "Suspicious Transaction Cluster", [], {}, "", "")
+FIN_T3 = create_crisis_task("FIN3", "Finance", "Budget Allocation Conflict", {}, "", "")
+FIN_T4 = create_prioritization_task("FIN4", "Finance", "Payment Approval Risk", [], "", "")
 
 # 3. HEALTHCARE
-HC_T1 = create_prioritization_task("HC-T1", "Healthcare", "Emergency Triage vs Routine Checkup",
-    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Cardiac Arrest"}],
-    "Patient presenting with cardiac arrest vs routine physicals.",
-    "Cardiac arrest must be prioritized.")
-HC_T2 = create_allocation_task("HC-T2", "Healthcare", "ICU Bed Distribution",
-    [{"project_id": "P1", "name": "Critical Care Unit"}], {},
-    "Allocating limited ICU beds for incoming trauma patients.",
-    "Optimal allocation handles trauma first.")
-HC_T3 = create_crisis_task("HC-T3", "Healthcare", "Oxygen Supply Shortage",
-    {"type": "supply_shortage"}, "Main oxygen tank pressure dropping unexpectedly.",
-    "escalate_issue is correct to trigger emergency hospital protocol.")
+HC_T1 = create_prioritization_task("HC1", "Healthcare", "Emergency Triage", [], "", "")
+HC_T2 = create_allocation_task("HC2", "Healthcare", "ICU Bed Allocation", [], {}, "", "")
+HC_T3 = create_crisis_task("HC3", "Healthcare", "Oxygen Supply Distribution", {}, "", "")
+HC_T4 = create_prioritization_task("HC4", "Healthcare", "Ambulance Dispatch Conflict", [], "", "")
 
 # 4. CYBERSECURITY
-CYB_T1 = create_prioritization_task("CYB-T1", "Cybersecurity", "DDoS Mitigation vs Log Review",
-    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Active DDoS"}],
-    "Active DDoS attack flooding main ingress.",
-    "DDoS must be prioritized.")
-CYB_T2 = create_allocation_task("CYB-T2", "Cybersecurity", "Incident Response Team Dispatch",
-    [{"project_id": "P1", "name": "Containment"}], {},
-    "Dispatching engineers to contain an ongoing breach.",
-    "Optimal allocation handles containment first.")
-CYB_T3 = create_crisis_task("CYB-T3", "Cybersecurity", "Active Ransomware Encryption Detected",
-    {"type": "ransomware"}, "File encryption detected on domain controllers.",
-    "escalate_issue is correct to trigger immediate network quarantine and SOC escalation.")
+CYB_T1 = create_prioritization_task("CYB1", "Cybersecurity", "Active Ransomware Attack", [], "", "")
+CYB_T2 = create_allocation_task("CYB2", "Cybersecurity", "DDoS Mitigation", [], {}, "", "")
+CYB_T3 = create_crisis_task("CYB3", "Cybersecurity", "Suspicious Login Cluster", {}, "", "")
+CYB_T4 = create_prioritization_task("CYB4", "Cybersecurity", "Security Incident Escalation", [], "", "")
 
 # 5. LOGISTICS
-LOG_T1 = create_prioritization_task("LOG-T1", "Logistics", "Perishable Goods vs Standard Cargo",
-    [{"task_id": "T1A", "urgency": "low"}, {"task_id": "T1B", "urgency": "critical", "title": "Perishables Delay"}],
-    "Refrigeration failure on a perishable goods container.",
-    "Perishable goods must be prioritized.")
-LOG_T2 = create_allocation_task("LOG-T2", "Logistics", "Fleet Routing & Driver Shifts",
-    [{"project_id": "P1", "name": "Express Delivery"}], {},
-    "Allocating available drivers to critical routes.",
-    "Optimal allocation handles express first.")
-LOG_T3 = create_crisis_task("LOG-T3", "Logistics", "Port Strike Causing Massive Delay",
-    {"type": "port_strike"}, "Unexpected worker strike at main port.",
-    "escalate_issue is correct to trigger rerouting logistics chain.")
+LOG_T1 = create_prioritization_task("LOG1", "Logistics", "Perishable Goods Delay", [], "", "")
+LOG_T2 = create_allocation_task("LOG2", "Logistics", "Fleet Route Conflict", [], {}, "", "")
+LOG_T3 = create_crisis_task("LOG3", "Logistics", "Port Congestion", {}, "", "")
+LOG_T4 = create_prioritization_task("LOG4", "Logistics", "Fuel Resource Allocation", [], "", "")
 
 DOMAINS = {
-    "Operations": [OP_T1, OP_T2, OP_T3],
-    "Finance": [FIN_T1, FIN_T2, FIN_T3],
-    "Healthcare": [HC_T1, HC_T2, HC_T3],
-    "Cybersecurity": [CYB_T1, CYB_T2, CYB_T3],
-    "Logistics": [LOG_T1, LOG_T2, LOG_T3],
+    "Operations": [OP_T1, OP_T2, OP_T3, OP_T4],
+    "Finance": [FIN_T1, FIN_T2, FIN_T3, FIN_T4],
+    "Healthcare": [HC_T1, HC_T2, HC_T3, HC_T4],
+    "Cybersecurity": [CYB_T1, CYB_T2, CYB_T3, CYB_T4],
+    "Logistics": [LOG_T1, LOG_T2, LOG_T3, LOG_T4],
 }
 
 TASK_REGISTRY = DOMAINS["Operations"]
 
 def get_tasks_for_domain(domain: str) -> list[TaskSchema]:
     return DOMAINS.get(domain, DOMAINS["Operations"])
+

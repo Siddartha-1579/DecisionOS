@@ -1166,7 +1166,17 @@ export default function App() {
       setCrisisHistory([]);
     } catch (err) {
       console.error(err);
-      setError('Failed to reset environment.');
+      setError('Failed to reset environment. Using fallback.');
+      setFallbackMode(true);
+      setState(getMockState(domain));
+      setLeaderboard([]);
+      setHistory([]);
+      setSimulationStatus('idle');
+      setHumanFinalMetrics(null);
+      setDynamicRisk(0);
+      setRiskMomentum(1.0);
+      setConsecutiveSuccesses(0);
+      setCrisisHistory([]);
     } finally {
       setLoading(false);
     }
@@ -1190,9 +1200,17 @@ export default function App() {
       setCrisisHistory([]);
     } catch (err) {
       console.error(err);
-      setError('Failed to switch domain.');
+      setError('Failed to switch domain. Using fallback.');
       setFallbackMode(true);
       setState(getMockState(domain));
+      setLeaderboard([]);
+      setHistory([]);
+      setSimulationStatus('idle');
+      setHumanFinalMetrics(null);
+      setDynamicRisk(0);
+      setRiskMomentum(1.0);
+      setConsecutiveSuccesses(0);
+      setCrisisHistory([]);
     } finally {
       setLoading(false);
     }
@@ -1451,50 +1469,62 @@ export default function App() {
     let tasks: any[] = [];
     if (domain === 'Operations') {
       tasks = [
-        { id: 'OP1', title: 'Production DB Outage', domain: 'Operations', urgency: 'Critical', importance: 'High' },
-        { id: 'OP2', title: 'Sprint Allocation', domain: 'Operations', urgency: 'Medium', importance: 'Medium' }
+        { id: 'OP1', title: 'Production Line Failure', domain: 'Operations', urgency: 'Critical', importance: 'High' },
+        { id: 'OP2', title: 'Workforce Allocation', domain: 'Operations', urgency: 'Medium', importance: 'High' },
+        { id: 'OP3', title: 'Infrastructure Bottleneck', domain: 'Operations', urgency: 'High', importance: 'High' },
+        { id: 'OP4', title: 'Security Patch Scheduling', domain: 'Operations', urgency: 'Low', importance: 'Medium' }
       ];
     } else if (domain === 'Finance') {
       tasks = [
-        { id: 'FIN1', title: 'High-Value Fraud Alert', domain: 'Finance', urgency: 'Critical', importance: 'High' },
-        { id: 'FIN2', title: 'Q3 Budget Deployment', domain: 'Finance', urgency: 'Medium', importance: 'High' }
+        { id: 'FIN1', title: 'Fraud Detection Alert', domain: 'Finance', urgency: 'Critical', importance: 'High' },
+        { id: 'FIN2', title: 'Suspicious Transaction Cluster', domain: 'Finance', urgency: 'High', importance: 'High' },
+        { id: 'FIN3', title: 'Budget Allocation Conflict', domain: 'Finance', urgency: 'Medium', importance: 'High' },
+        { id: 'FIN4', title: 'Payment Approval Risk', domain: 'Finance', urgency: 'Medium', importance: 'Medium' }
       ];
     } else if (domain === 'Healthcare') {
       tasks = [
-        { id: 'HC1', title: 'Emergency Triage: Cardiac Arrest', domain: 'Healthcare', urgency: 'Critical', importance: 'High' },
-        { id: 'HC2', title: 'ICU Bed Distribution', domain: 'Healthcare', urgency: 'High', importance: 'High' }
+        { id: 'HC1', title: 'Emergency Triage', domain: 'Healthcare', urgency: 'Critical', importance: 'High' },
+        { id: 'HC2', title: 'ICU Bed Allocation', domain: 'Healthcare', urgency: 'Critical', importance: 'High' },
+        { id: 'HC3', title: 'Oxygen Supply Distribution', domain: 'Healthcare', urgency: 'High', importance: 'High' },
+        { id: 'HC4', title: 'Ambulance Dispatch Conflict', domain: 'Healthcare', urgency: 'High', importance: 'High' }
       ];
     } else if (domain === 'Cybersecurity') {
       tasks = [
-        { id: 'CYB1', title: 'Active DDoS Mitigation', domain: 'Cybersecurity', urgency: 'Critical', importance: 'High' },
-        { id: 'CYB2', title: 'Incident Response Dispatch', domain: 'Cybersecurity', urgency: 'High', importance: 'Medium' }
+        { id: 'CYB1', title: 'Active Ransomware Attack', domain: 'Cybersecurity', urgency: 'Critical', importance: 'High' },
+        { id: 'CYB2', title: 'DDoS Mitigation', domain: 'Cybersecurity', urgency: 'Critical', importance: 'High' },
+        { id: 'CYB3', title: 'Suspicious Login Cluster', domain: 'Cybersecurity', urgency: 'High', importance: 'High' },
+        { id: 'CYB4', title: 'Security Incident Escalation', domain: 'Cybersecurity', urgency: 'Medium', importance: 'High' }
       ];
     } else if (domain === 'Logistics') {
       tasks = [
         { id: 'LOG1', title: 'Perishable Goods Delay', domain: 'Logistics', urgency: 'Critical', importance: 'High' },
-        { id: 'LOG2', title: 'Fleet Routing Optimization', domain: 'Logistics', urgency: 'Medium', importance: 'Medium' }
+        { id: 'LOG2', title: 'Fleet Route Conflict', domain: 'Logistics', urgency: 'High', importance: 'High' },
+        { id: 'LOG3', title: 'Port Congestion', domain: 'Logistics', urgency: 'Medium', importance: 'High' },
+        { id: 'LOG4', title: 'Fuel Resource Allocation', domain: 'Logistics', urgency: 'Medium', importance: 'High' }
       ];
     }
 
     return {
       observation: {
         budget: 4200000,
-        time_elapsed: 14,
+        time_elapsed: 0,
         workforce: 1240,
-        risk_level: 'Elevated',
+        risk_level: 'Normal',
         active_tasks: tasks
       },
-    metrics: {
-      total_reward: 12450,
-      completed_tasks: 843,
-      risk_failures: 2
-    },
-    dis: {
-      total_score: 0.942,
-      component_scores: { correctness: 0.96, utilization: 0.82, adherence: 0.88 }
-    }
+      metrics: {
+        total_reward: 0,
+        completed_tasks: 0,
+        risk_failures: 0
+      },
+      dis: {
+        total_score: 0,
+        base_score: 0,
+        risk_penalty: 0,
+        component_scores: { correctness: 0, utilization: 0, adherence: 0 }
+      }
+    };
   };
-};
 
   const getMockLeaderboard = () => [
     { agent_name: 'random', final_dis: 0.124, completed_tasks: 45, risk_failures: 156, total_reward: 1200, accuracy: 0.15, efficiency: 0.10 },
@@ -1535,6 +1565,23 @@ export default function App() {
     if (dom === 'Finance') return 'bg-primary/20 text-primary shadow-[inset_0_0_8px_rgba(56,245,255,0.3)] font-bold';
     if (dom === 'Logistics') return 'bg-amber-400/20 text-amber-400 shadow-[inset_0_0_8px_rgba(251,191,36,0.3)] font-bold';
     return 'bg-tertiary-container/20 text-tertiary-container font-bold';
+  };
+
+  const getDomainIcon = (d: string) => {
+    if (d === 'Healthcare') return 'medical_services';
+    if (d === 'Cybersecurity') return 'security';
+    if (d === 'Finance') return 'query_stats';
+    if (d === 'Logistics') return 'local_shipping';
+    return 'psychology';
+  };
+
+  const getDomainContextText = (d: string) => {
+    if (d === 'Operations') return 'workflow bottlenecks, infrastructure, workforce allocation';
+    if (d === 'Healthcare') return 'emergency triage, ICU beds, oxygen supply, patient risk';
+    if (d === 'Cybersecurity') return 'ransomware, DDoS, suspicious logins, incident escalation';
+    if (d === 'Finance') return 'fraud alerts, suspicious transactions, budget allocation, payment risk';
+    if (d === 'Logistics') return 'perishable goods delays, fleet routes, port congestion, fuel allocation';
+    return '';
   };
 
   const renderLeaderboardTowers = () => {
@@ -1733,17 +1780,20 @@ export default function App() {
         </div>
 
         {/* Domain Selector */}
-        <div className="hidden lg:flex items-center bg-surface-container rounded-lg border border-outline-variant/30 overflow-hidden shadow-glass">
-          {['Operations', 'Finance', 'Healthcare', 'Cybersecurity', 'Logistics'].map(dom => (
-            <button
-              key={dom}
-              onClick={() => handleDomainSwitch(dom)}
-              disabled={loading || isBenchmarking || simulationStatus === 'in-progress'}
-              className={`px-3 py-1.5 font-label-caps text-[10px] uppercase transition-colors border-r border-outline-variant/20 last:border-0 ${currentDomain === dom ? getDomainTabActiveStyles(dom) : 'text-on-surface-variant hover:bg-space-800'} disabled:opacity-50`}
-            >
-              {dom}
-            </button>
-          ))}
+        <div className="hidden lg:flex flex-col gap-1 items-end pt-2">
+          <div className="flex items-center bg-surface-container rounded-lg border border-outline-variant/30 overflow-hidden shadow-glass">
+            {['Operations', 'Finance', 'Healthcare', 'Cybersecurity', 'Logistics'].map(dom => (
+              <button
+                key={dom}
+                onClick={() => handleDomainSwitch(dom)}
+                disabled={loading || isBenchmarking || simulationStatus === 'in-progress'}
+                className={`px-3 py-1.5 font-label-caps text-[10px] uppercase transition-colors border-r border-outline-variant/20 last:border-0 ${currentDomain === dom ? getDomainTabActiveStyles(dom) : 'text-on-surface-variant hover:bg-space-800'} disabled:opacity-50`}
+              >
+                {dom}
+              </button>
+            ))}
+          </div>
+          <span className="text-[9px] text-on-surface-variant/80 uppercase tracking-widest font-label-caps mt-1 pr-1">Switching domains resets the benchmark environment and loads domain-specific decision tasks.</span>
         </div>
 
         <div className="flex items-center gap-6">
@@ -1815,9 +1865,17 @@ export default function App() {
               <h1 className="font-display-lg text-display-lg text-on-surface mb-xs tracking-tight">
                 Decision<span className="text-primary drop-shadow-[0_0_15px_rgba(56,245,255,0.6)]">OS</span>
               </h1>
-              <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+              <p className="font-body-lg text-body-lg text-on-surface-variant max-w-xl mb-6">
                 Multi-Domain Benchmark for AI Decision-Making Under Real-World Constraints.
               </p>
+              
+              <div className={`p-3 rounded-lg border bg-surface-container/30 backdrop-blur-md shadow-glass w-fit ${getDomainColor(currentDomain)}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="material-symbols-outlined text-sm">{getDomainIcon(currentDomain)}</span>
+                  <span className="text-[10px] font-label-caps uppercase tracking-widest font-bold">{currentDomain} Context</span>
+                </div>
+                <p className="text-xs font-body-sm opacity-90 leading-tight">{getDomainContextText(currentDomain)}</p>
+              </div>
               {appMode === 'human' && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-secondary/10 border border-secondary/30 text-secondary px-3 py-1 rounded-full shadow-glow-violet animate-pulse">
                   <span className="material-symbols-outlined text-sm">sports_esports</span>
