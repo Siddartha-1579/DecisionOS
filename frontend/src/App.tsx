@@ -1108,6 +1108,39 @@ const AdapterIntegrationModal = ({ isOpen, onClose }: { isOpen: boolean, onClose
   );
 }
 
+const fallbackTasksByDomain: Record<string, any[]> = {
+  Healthcare: [
+    { id: 101, title: 'Emergency Triage', domain: 'Healthcare', urgency: 'Critical', importance: 'High', risk_level: 'High', resources_required: 50, recommended_action: 'prioritize_task' },
+    { id: 102, title: 'ICU Bed Allocation', domain: 'Healthcare', urgency: 'High', importance: 'High', risk_level: 'Elevated', resources_required: 120, recommended_action: 'allocate_resources' },
+    { id: 103, title: 'Oxygen Supply Distribution', domain: 'Healthcare', urgency: 'Normal', importance: 'High', risk_level: 'Normal', resources_required: 200, recommended_action: 'step' },
+    { id: 104, title: 'Ambulance Dispatch Conflict', domain: 'Healthcare', urgency: 'High', importance: 'Medium', risk_level: 'Elevated', resources_required: 30, recommended_action: 'allocate_resources' }
+  ],
+  Cybersecurity: [
+    { id: 201, title: 'Active Ransomware Attack', domain: 'Cybersecurity', urgency: 'Critical', importance: 'High', risk_level: 'High', resources_required: 150, recommended_action: 'veto_task' },
+    { id: 202, title: 'DDoS Mitigation', domain: 'Cybersecurity', urgency: 'High', importance: 'High', risk_level: 'Elevated', resources_required: 300, recommended_action: 'allocate_resources' },
+    { id: 203, title: 'Suspicious Login Cluster', domain: 'Cybersecurity', urgency: 'Medium', importance: 'Medium', risk_level: 'Elevated', resources_required: 20, recommended_action: 'step' },
+    { id: 204, title: 'Security Incident Escalation', domain: 'Cybersecurity', urgency: 'Normal', importance: 'High', risk_level: 'Normal', resources_required: 50, recommended_action: 'step' }
+  ],
+  Finance: [
+    { id: 301, title: 'Fraud Detection Alert', domain: 'Finance', urgency: 'Critical', importance: 'High', risk_level: 'High', resources_required: 80, recommended_action: 'prioritize_task' },
+    { id: 302, title: 'Suspicious Transaction Cluster', domain: 'Finance', urgency: 'High', importance: 'High', risk_level: 'Elevated', resources_required: 45, recommended_action: 'veto_task' },
+    { id: 303, title: 'Budget Allocation Conflict', domain: 'Finance', urgency: 'Normal', importance: 'High', risk_level: 'Normal', resources_required: 500, recommended_action: 'allocate_resources' },
+    { id: 304, title: 'Payment Approval Risk', domain: 'Finance', urgency: 'Medium', importance: 'Medium', risk_level: 'Elevated', resources_required: 10, recommended_action: 'step' }
+  ],
+  Logistics: [
+    { id: 401, title: 'Perishable Goods Delay', domain: 'Logistics', urgency: 'Critical', importance: 'High', risk_level: 'Elevated', resources_required: 250, recommended_action: 'prioritize_task' },
+    { id: 402, title: 'Fleet Route Conflict', domain: 'Logistics', urgency: 'High', importance: 'Medium', risk_level: 'Elevated', resources_required: 60, recommended_action: 'allocate_resources' },
+    { id: 403, title: 'Port Congestion', domain: 'Logistics', urgency: 'Medium', importance: 'High', risk_level: 'Normal', resources_required: 400, recommended_action: 'step' },
+    { id: 404, title: 'Fuel Resource Allocation', domain: 'Logistics', urgency: 'Normal', importance: 'Medium', risk_level: 'Normal', resources_required: 100, recommended_action: 'step' }
+  ],
+  Operations: [
+    { id: 501, title: 'Production Line Failure', domain: 'Operations', urgency: 'Critical', importance: 'High', risk_level: 'High', resources_required: 300, recommended_action: 'prioritize_task' },
+    { id: 502, title: 'Workforce Allocation', domain: 'Operations', urgency: 'High', importance: 'High', risk_level: 'Normal', resources_required: 500, recommended_action: 'allocate_resources' },
+    { id: 503, title: 'Infrastructure Bottleneck', domain: 'Operations', urgency: 'Medium', importance: 'Medium', risk_level: 'Elevated', resources_required: 150, recommended_action: 'step' },
+    { id: 504, title: 'Security Patch Scheduling', domain: 'Operations', urgency: 'Normal', importance: 'Low', risk_level: 'Normal', resources_required: 20, recommended_action: 'step' }
+  ]
+};
+
 export default function App() {
   const [state, setState] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -1230,21 +1263,56 @@ export default function App() {
   };
 
   const handleAction = async (actionType: string) => {
-    if (fallbackMode) {
-      alert(`Fallback mode: action ${actionType} triggered locally.`);
-      return;
-    }
     try {
       setLoading(true);
-      const activeTask = state?.observation?.active_tasks?.[0];
+      const activeTask = state?.observation?.active_tasks?.[0] || fallbackTasksByDomain[currentDomain]?.[0];
       const prevState = state?.observation;
-      const payload: ActionPayload = {
-        action_type: actionType,
-        task_id: activeTask?.id || 'T1',
-        amount: 0,
-        reason: 'Selected based on urgency, importance, and risk.'
-      };
-      const result = await api.step(payload);
+      let result: any = null;
+
+      try {
+        const payload: ActionPayload = {
+          action_type: actionType,
+          task_id: activeTask?.id || 'T1',
+          amount: 0,
+          reason: 'Selected based on urgency, importance, and risk.'
+        };
+        result = await api.step(payload);
+      } catch (err) {
+        console.warn("Backend step failed. Using deterministic fallback.", err);
+        setFallbackMode(true);
+        // Deterministic local step fallback
+        const reward = actionType === activeTask?.recommended_action ? 15 : -5;
+        const currentTasks = state?.observation?.active_tasks || fallbackTasksByDomain[currentDomain] || [];
+        let remainingTasks = currentTasks.slice(1);
+        if (remainingTasks.length === 0) {
+           remainingTasks = [...(fallbackTasksByDomain[currentDomain] || fallbackTasksByDomain['Operations'])]; // never leave empty
+        }
+        
+        result = {
+          reward,
+          done: false,
+          observation: {
+            ...state?.observation,
+            time_elapsed: (state?.observation?.time_elapsed || 0) + 1,
+            budget: (state?.observation?.budget || 2000000) - 10000,
+            active_tasks: remainingTasks,
+            risk_level: reward > 0 ? 'Normal' : 'Elevated',
+            workforce: (state?.observation?.workforce || 1000) - 10
+          },
+          metrics: {
+            total_reward: (state?.metrics?.total_reward || 0) + reward,
+            completed_tasks: (state?.metrics?.completed_tasks || 0) + 1,
+            risk_failures: state?.metrics?.risk_failures || 0
+          },
+          dis: {
+            total_score: Math.min((state?.dis?.total_score || 0.42) + (reward > 0 ? 0.05 : -0.02), 1.0),
+            base_score: Math.min((state?.dis?.base_score || 0.42) + (reward > 0 ? 0.05 : -0.02), 1.0),
+            risk_penalty: 0,
+            component_scores: state?.dis?.component_scores || { correctness: 0.5, utilization: 0.5, adherence: 0.5 }
+          },
+          info: { outcome: `Local step executed: ${actionType}` }
+        };
+      }
       
       const currentTasks = state?.observation?.active_tasks || [];
       let riskDelta = 0;
@@ -1914,6 +1982,22 @@ export default function App() {
                   <span className="font-label-caps text-xs">Challenge: Can you outperform the AI?</span>
                 </div>
               )}
+              
+              <div className="flex gap-2 mt-4 text-[10px] font-label-caps uppercase tracking-widest text-primary flex-wrap">
+                <span className="bg-primary/10 px-2 py-0.5 rounded border border-primary/20 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">looks_one</span> Choose Domain</span>
+                <span className="bg-primary/10 px-2 py-0.5 rounded border border-primary/20 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">looks_two</span> Review Task Queue</span>
+                <span className="bg-primary/10 px-2 py-0.5 rounded border border-primary/20 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">looks_3</span> Execute Action</span>
+                <span className="bg-primary/10 px-2 py-0.5 rounded border border-primary/20 flex items-center gap-1"><span className="material-symbols-outlined text-[10px]">looks_4</span> Watch DIS update</span>
+              </div>
+              
+              <div className="flex gap-2 mt-4 text-xs">
+                <button onClick={() => document.getElementById('task-queue')?.scrollIntoView({ behavior: 'smooth' })} className="px-3 py-1 bg-surface-container border border-outline-variant/50 rounded-full hover:border-primary/50 text-on-surface transition-colors flex items-center gap-1 shadow-glass">
+                  <span className="material-symbols-outlined text-[14px]">arrow_downward</span> Scroll to Task Queue
+                </button>
+                <button onClick={() => document.getElementById('env-state')?.scrollIntoView({ behavior: 'smooth' })} className="px-3 py-1 bg-surface-container border border-outline-variant/50 rounded-full hover:border-primary/50 text-on-surface transition-colors flex items-center gap-1 shadow-glass">
+                  <span className="material-symbols-outlined text-[14px]">arrow_downward</span> Scroll to Environment State
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-md">
               <motion.button 
@@ -2000,20 +2084,24 @@ export default function App() {
                 <LiveRiskMonitor risk={dynamicRisk} momentum={riskMomentum} history={crisisHistory} />
               )}
 
-              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/20 rounded-2xl p-lg shadow-glass relative overflow-hidden group hover:border-primary/40 transition-colors">
+              <motion.div id="env-state" variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-primary/20 rounded-2xl p-lg shadow-glass relative overflow-hidden group hover:border-primary/40 transition-colors">
                 <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/10 rounded-full blur-[40px] group-hover:bg-primary/20 transition-colors"></div>
                 <h3 className="font-h3 text-h3 text-on-surface mb-md flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">public</span>
-                  Current Environment State
+                  Environment State
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-sm relative z-10">
                   {[
-                    { label: 'Budget', value: formatBudget(state?.observation?.budget || 0), color: 'text-primary' },
-                    { label: 'Time Elapsed', value: `T+${state?.observation?.time_elapsed || 0}:00`, color: 'text-secondary' },
-                    { label: 'Workforce', value: `${formatNumber(state?.observation?.workforce || 0)} U`, color: 'text-on-surface' },
-                    { label: getRiskTerminology(currentDomain), value: state?.observation?.risk_level || 'Normal', color: isRiskElevated ? 'text-error drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]' : 'text-on-surface' }
+                    { label: 'Active Domain', value: currentDomain, color: 'text-primary' },
+                    { label: 'Current Mode', value: appMode === 'human' ? 'Human' : 'AI Engine', color: 'text-secondary' },
+                    { label: 'Benchmark Seed', value: benchmarkSeed || 'N/A', color: 'text-on-surface-variant' },
+                    { label: 'Budget', value: formatBudget(state?.observation?.budget || 2000000), color: 'text-signal-green' },
+                    { label: 'Workforce', value: `${formatNumber(state?.observation?.workforce || 1000)} U`, color: 'text-on-surface' },
+                    { label: 'Time', value: `T+${state?.observation?.time_elapsed || 0}:00`, color: 'text-tertiary' },
+                    { label: 'Dynamic Risk', value: `${Math.round(dynamicRisk)} / 100`, color: dynamicRisk > 50 ? 'text-error animate-pulse' : 'text-on-surface' },
+                    { label: 'Status', value: simulationStatus === 'completed' ? 'Completed' : 'Active', color: simulationStatus === 'completed' ? 'text-tertiary-container' : 'text-signal-green' }
                   ].map((stat, i) => (
-                    <div key={i} className={`bg-space-900/50 rounded-xl p-sm border ${i === 3 && isRiskElevated ? 'border-error/40 shadow-glow-red' : 'border-outline-variant/20'}`}>
+                    <div key={i} className={`bg-space-900/50 rounded-xl p-sm border border-outline-variant/20`}>
                       <span className="font-label-caps text-[10px] text-on-surface-variant block mb-1">{stat.label}</span>
                       <span className={`font-data-mono text-sm sm:text-base ${stat.color}`}>{stat.value}</span>
                     </div>
@@ -2021,16 +2109,16 @@ export default function App() {
                 </div>
               </motion.div>
 
-              <motion.div variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass">
+              <motion.div id="task-queue" variants={itemVariants} className="bg-surface-container/30 backdrop-blur-2xl border border-outline-variant/30 rounded-2xl p-lg shadow-glass">
                 <div className="flex justify-between items-center mb-md">
                   <h3 className="font-h3 text-h3 text-on-surface flex items-center gap-2">
                     <span className="material-symbols-outlined text-secondary drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]">layers</span>
-                    Active Task Stack
+                    Active Task Queue
                   </h3>
                 </div>
                 <div className="relative pt-2 pb-8 perspective-1000">
                   <AnimatePresence>
-                    {(state?.observation?.active_tasks?.slice(0, 4) || []).map((task: any, i: number) => (
+                    {((state?.observation?.active_tasks && state.observation.active_tasks.length > 0) ? state.observation.active_tasks : fallbackTasksByDomain[currentDomain] || fallbackTasksByDomain['Operations']).slice(0, 4).map((task: any, i: number) => (
                       <motion.div 
                         key={task.id || i} 
                         initial={{ opacity: 0, y: -20, scale: 0.9 }}
@@ -2042,7 +2130,7 @@ export default function App() {
                         }}
                         exit={{ opacity: 0, scale: 0.8 }}
                         whileHover={{ y: (i * 15) - 10, scale: (1 - (i * 0.05)) + 0.02, zIndex: 20 }}
-                        className={`absolute w-full bg-space-800 border border-outline-variant/30 rounded-xl p-md flex items-center justify-between shadow-glass cursor-pointer`}
+                        className={`absolute w-full bg-space-800 border border-outline-variant/30 rounded-xl p-md flex flex-col md:flex-row items-start md:items-center justify-between shadow-glass cursor-pointer gap-2`}
                       >
                         <div className="flex items-center gap-md">
                           <div className={`w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center border border-outline-variant/20 shrink-0`}>
@@ -2050,23 +2138,30 @@ export default function App() {
                           </div>
                           <div>
                             <h4 className="font-body-md text-sm text-on-surface font-medium mb-1">{task.title || `Task ${task.id}`}</h4>
-                            <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border ${getDomainColor(task.domain || 'General')}`}>
-                              {task.domain || 'General'}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border ${getDomainColor(task.domain || currentDomain)}`}>
+                                {task.domain || currentDomain}
+                              </span>
+                              <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-outline-variant text-on-surface-variant`}>
+                                IMP: {task.importance || 'Normal'}
+                              </span>
+                              <span className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-outline-variant text-on-surface-variant`}>
+                                RES: {task.resources_required || 10} U
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`font-label-caps text-[10px] ${task.urgency === 'Critical' ? 'text-error' : 'text-on-surface-variant'} block`}>Urgency</span>
-                          <span className="font-data-mono text-sm text-on-surface">{task.urgency || 'Normal'}</span>
+                        <div className="flex flex-row md:flex-col gap-4 md:gap-0 w-full md:w-auto mt-2 md:mt-0 justify-between md:justify-end text-left md:text-right border-t md:border-t-0 border-outline-variant/30 pt-2 md:pt-0">
+                          <div>
+                            <span className={`font-label-caps text-[10px] block ${task.urgency === 'Critical' ? 'text-error' : 'text-on-surface-variant'}`}>Urgency / Risk</span>
+                            <span className={`font-data-mono text-sm ${task.urgency === 'Critical' ? 'text-error animate-pulse' : 'text-on-surface'}`}>{task.urgency || 'Normal'} ({task.risk_level || 'Normal'})</span>
+                          </div>
                         </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
-                  {(!state?.observation?.active_tasks || state.observation.active_tasks.length === 0) && (
-                    <div className="text-on-surface-variant text-center p-8 font-body-sm italic">Queue Empty. Awaiting input.</div>
-                  )}
                   {/* Invisible spacer to maintain layout height for absolute positioned elements */}
-                  <div className="h-48"></div> 
+                  <div className="h-56"></div> 
                 </div>
               </motion.div>
 
