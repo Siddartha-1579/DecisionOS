@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import { api } from './lib/api';
 import type { ActionPayload } from './lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1584,6 +1584,47 @@ export default function App() {
     return '';
   };
 
+  // Derived Fallback KPI Logic
+  const backendBaseScore = state?.dis?.base_score || state?.dis?.total_score || 0;
+  const backendAdjusted = state?.dis?.total_score || 0;
+
+  let displayBaseScore = backendBaseScore;
+  let displayAdjusted = backendAdjusted;
+  let displayPenalty = state?.dis?.risk_penalty || 0;
+
+  if (!backendAdjusted && !backendBaseScore) {
+    const r = state?.metrics?.total_reward || 0;
+    const t = state?.metrics?.completed_tasks || 0;
+    const risk = dynamicRisk || 0;
+    
+    // baseScore = ((totalReward * 100) + (tasksDone * 10) - (dynamicRiskScore * 2))
+    let calcBase = (r * 100) + (t * 10) - (risk * 2);
+    calcBase = Math.min(Math.max(calcBase, 0), 100);
+    
+    // riskPenalty = dynamicRiskScore * 0.15
+    const penalty = risk * 0.15;
+    
+    // Adjusted DIS = baseScore - riskPenalty
+    let calcAdj = calcBase - penalty;
+    calcAdj = Math.min(Math.max(calcAdj, 0), 100);
+    
+    // Scale down to 0-1 range for formatDIS
+    displayBaseScore = calcBase / 100;
+    displayAdjusted = calcAdj / 100;
+    displayPenalty = penalty / 100;
+  }
+
+  const prevAdjustedRef = useRef(displayAdjusted);
+  const prevBaseRef = useRef(displayBaseScore);
+
+  const adjustedColor = displayAdjusted >= prevAdjustedRef.current ? 'rgba(56, 245, 255, 0.8)' : 'rgba(248, 113, 113, 0.8)';
+  const baseColor = displayBaseScore >= prevBaseRef.current ? 'rgba(56, 245, 255, 0.8)' : 'rgba(248, 113, 113, 0.8)';
+
+  useEffect(() => {
+    prevAdjustedRef.current = displayAdjusted;
+    prevBaseRef.current = displayBaseScore;
+  }, [displayAdjusted, displayBaseScore]);
+
   const renderLeaderboardTowers = () => {
     let list = leaderboard.length > 0 ? [...leaderboard] : getMockLeaderboard();
     if (appMode === 'human' && humanFinalMetrics) {
@@ -1907,10 +1948,10 @@ export default function App() {
 
           <motion.section variants={containerVariants} className="grid grid-cols-2 md:grid-cols-5 gap-md perspective-1000">
             {[
-              { label: 'Adjusted DIS', value: formatDIS(state?.dis?.total_score || 0), sub: state?.dis?.risk_penalty ? `-${(state.dis.risk_penalty * 100).toFixed(1)} Penalty` : 'Stable', icon: 'psychology', color: 'primary', shadow: 'shadow-glow-cyan' },
-              { label: 'Base Score', value: formatDIS(state?.dis?.base_score || state?.dis?.total_score || 0), sub: 'Raw DIS', icon: 'score', color: 'secondary', shadow: 'shadow-glow-violet' },
-              { label: 'Total Reward', value: formatNumber(state?.metrics?.total_reward || 0), sub: 'pts', icon: 'workspace_premium', color: 'tertiary', shadow: 'shadow-glass' },
-              { label: 'Tasks Done', value: formatNumber(state?.metrics?.completed_tasks || 0), sub: '/ 1000', icon: 'task_alt', color: 'outline', shadow: 'shadow-glass' }
+              { label: 'Adjusted DIS', value: formatDIS(displayAdjusted), sub: 'Risk Adjusted', icon: 'psychology', color: 'primary', shadow: 'shadow-glow-cyan', glowColor: adjustedColor },
+              { label: 'Base Score', value: formatDIS(displayBaseScore), sub: 'Raw DIS', icon: 'score', color: 'secondary', shadow: 'shadow-glow-violet', glowColor: baseColor },
+              { label: 'Total Reward', value: formatNumber(state?.metrics?.total_reward || 0), sub: 'pts', icon: 'workspace_premium', color: 'tertiary', shadow: 'shadow-glass', glowColor: 'rgba(255,255,255,0.4)' },
+              { label: 'Tasks Done', value: formatNumber(state?.metrics?.completed_tasks || 0), sub: '/ 1000', icon: 'task_alt', color: 'outline', shadow: 'shadow-glass', glowColor: 'rgba(255,255,255,0.4)' }
             ].map((kpi, i) => (
               <motion.div 
                 key={i}
@@ -1924,8 +1965,16 @@ export default function App() {
                   <span className={`material-symbols-outlined text-${kpi.color} text-[16px] drop-shadow-md`}>{kpi.icon}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="font-h2 text-h2 text-on-surface">{kpi.value}</span>
-                  <span className={`font-body-sm text-xs text-${kpi.color}`}>{kpi.sub}</span>
+                  <motion.span 
+                    key={kpi.value}
+                    initial={{ textShadow: `0 0 25px ${kpi.glowColor}`, scale: 1.15, color: '#ffffff' }}
+                    animate={{ textShadow: `0 0 0px rgba(0,0,0,0)`, scale: 1, color: '#e2e8f0' }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="font-h2 text-h2"
+                  >
+                    {kpi.value}
+                  </motion.span>
+                  <span className={`font-body-sm text-xs text-${kpi.color} ml-1`}>{kpi.sub}</span>
                 </div>
               </motion.div>
             ))}
